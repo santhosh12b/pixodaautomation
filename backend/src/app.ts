@@ -4,6 +4,8 @@ import { notFoundHandler, errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import queueRoutes from './routes/queue.routes.js';
 import leadRoutes from './routes/lead.routes.js';
+import webhookRoutes from './routes/webhook.routes.js';
+import inboxRoutes from './routes/inbox.routes.js';
 
 export function createApp() {
   const app = express();
@@ -27,6 +29,8 @@ export function createApp() {
   // API Routes
   app.use('/api/queue', queueRoutes);
   app.use('/api/leads', leadRoutes);
+  app.use('/api/webhooks', webhookRoutes);
+  app.use('/api/inbox', inboxRoutes);
 
   // 404 and Error handling
   app.use(notFoundHandler);
