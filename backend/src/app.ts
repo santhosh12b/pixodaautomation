@@ -3,6 +3,7 @@ import { configureCors } from './middleware/cors.js';
 import { notFoundHandler, errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import queueRoutes from './routes/queue.routes.js';
+import leadRoutes from './routes/lead.routes.js';
 
 export function createApp() {
   const app = express();
@@ -23,8 +24,9 @@ export function createApp() {
     });
   });
 
-  // Queue routes
+  // API Routes
   app.use('/api/queue', queueRoutes);
+  app.use('/api/leads', leadRoutes);
 
   // 404 and Error handling
   app.use(notFoundHandler);
