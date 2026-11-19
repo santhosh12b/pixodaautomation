@@ -131,6 +131,100 @@ export class CampaignService {
     }
   }
 
+  async createCampaign(data: {
+    name: string;
+    description?: string;
+    status?: 'draft' | 'active' | 'paused' | 'completed';
+    sheetUrl?: string;
+    sheetTab?: string;
+    messageTemplate: string;
+    videoAssetId?: string;
+    videoDelaySeconds?: number;
+    cooldownHours?: number;
+  }): Promise<CampaignRecord> {
+    const id = uuidv4();
+    const now = new Date();
+    const record: CampaignRecord = {
+      id,
+      name: data.name,
+      description: data.description || null,
+      status: data.status || 'draft',
+      sheetUrl: data.sheetUrl || null,
+      sheetTab: data.sheetTab || 'Sheet1',
+      messageTemplate: data.messageTemplate,
+      videoAssetId: data.videoAssetId || null,
+      videoDelaySeconds: data.videoDelaySeconds ?? 5,
+      cooldownHours: data.cooldownHours ?? 24,
+      videoAsset: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (this.isMockStore) {
+      this.mockCampaigns.set(id, record);
+      return record;
+    }
+
+    try {
+      const [inserted] = await db.insert(campaigns).values({
+        id: record.id,
+        name: record.name,
+        description: record.description,
+        status: record.status,
+        sheetUrl: record.sheetUrl,
+        sheetTab: record.sheetTab,
+        messageTemplate: record.messageTemplate,
+        videoAssetId: record.videoAssetId,
+        videoDelaySeconds: record.videoDelaySeconds,
+        cooldownHours: record.cooldownHours,
+      }).returning();
+
+      return (inserted as unknown as CampaignRecord) || record;
+    } catch {
+      this.mockCampaigns.set(id, record);
+      return record;
+    }
+  }
+
+  async updateCampaign(id: string, updates: Partial<CampaignRecord>): Promise<CampaignRecord | null> {
+    if (this.isMockStore) {
+      const existing = this.mockCampaigns.get(id);
+      if (!existing) return null;
+      const updated = { ...existing, ...updates, updatedAt: new Date() };
+      this.mockCampaigns.set(id, updated);
+      return updated;
+    }
+
+    try {
+      const [updated] = await db
+        .update(campaigns)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(campaigns.id, id))
+        .returning();
+
+      return (updated as unknown as CampaignRecord) || null;
+    } catch {
+      const existing = this.mockCampaigns.get(id);
+      if (!existing) return null;
+      const updated = { ...existing, ...updates, updatedAt: new Date() };
+      this.mockCampaigns.set(id, updated);
+      return updated;
+    }
+  }
+
+  async deleteCampaign(id: string): Promise<boolean> {
+    if (this.isMockStore) {
+      return this.mockCampaigns.delete(id);
+    }
+
+    try {
+      await db.delete(campaigns).where(eq(campaigns.id, id));
+      return true;
+    } catch {
+      return this.mockCampaigns.delete(id);
+    }
+  }
+
   createCampaignMock(data: Partial<CampaignRecord> & { name: string; messageTemplate: string; sourceSheet?: string }): CampaignRecord {
     const record: CampaignRecord = {
       id: data.id || uuidv4(),
