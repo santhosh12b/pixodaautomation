@@ -1,12 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "backend": {
-      "root": "backend",
-      "framework": "express",
-      "entrypoint": "api/index.ts"
-    }
-  },
   "crons": [
     {
       "path": "/api/queue/process",
@@ -15,18 +8,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api",
-      "destination": {
-        "service": "backend",
-        "path": "/api"
-      }
+      "source": "/",
+      "destination": "/index.html"
     },
     {
       "source": "/api/(.*)",
-      "destination": {
-        "service": "backend",
-        "path": "/api/$1"
-      }
+      "destination": "/api/$1"
     }
   ]
 }
