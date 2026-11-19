@@ -8,14 +8,6 @@
     {
       "source": "/api",
       "destination": "/api"
-    },
-    {
-      "source": "/",
-      "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/api"
     }
   ]
 }
