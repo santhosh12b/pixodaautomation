@@ -17,19 +17,29 @@
     {
       "source": "/api",
       "destination": {
-        "service": "backend"
+        "service": "backend",
+        "path": "/api"
       }
     },
     {
       "source": "/api/(.*)",
       "destination": {
-        "service": "backend"
+        "service": "backend",
+        "path": "/api/$1"
+      }
+    },
+    {
+      "source": "/",
+      "destination": {
+        "service": "backend",
+        "path": "/api"
       }
     },
     {
       "source": "/(.*)",
       "destination": {
-        "service": "backend"
+        "service": "backend",
+        "path": "/$1"
       }
     }
   ]
