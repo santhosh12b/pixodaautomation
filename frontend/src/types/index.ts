@@ -102,3 +102,4 @@ export interface CampaignPerformance {
   sent: number;
   responseRate: string;
 }
+

@@ -44,3 +44,4 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ cl
     </div>
   );
 };
+
