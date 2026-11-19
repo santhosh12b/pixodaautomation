@@ -133,3 +133,4 @@ describe('Task 15: Full End-to-End Automation Pipeline', () => {
     expect(chartsRes.body.funnel.length).toBe(5);
   });
 });
+

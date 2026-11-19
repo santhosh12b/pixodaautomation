@@ -197,3 +197,4 @@ function sendSelectedRowTest() {
   processNewLeads();
   SpreadsheetApp.getUi().alert('Ran lead check. Check logs or Automated_Status column.');
 }
+

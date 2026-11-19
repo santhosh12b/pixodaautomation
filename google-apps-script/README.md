@@ -44,3 +44,4 @@ Any additional columns (such as `Company`, `City`, `Budget`) are preserved and f
 - It batches up to 25 leads per run and sends an HTTP `POST` to `/api/leads/webhook` with the `X-Webhook-Secret` header.
 - Upon receiving `200 OK`, it stamps `PROCESSED: <timestamp>` into the row, preventing duplicate processing.
 - The backend matches the lead to an active campaign, enqueues the WhatsApp message via Unipile, and sends promotional video followup.
+

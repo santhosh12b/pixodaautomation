@@ -179,3 +179,4 @@ Vercel Cron automatically sends the `CRON_SECRET` header when invoking the endpo
 4. Update `BACKEND_URL` and `WEBHOOK_SECRET` to match your deployed backend.
 5. Run `setupMinuteTrigger()`.
 6. New leads added to the Google Sheet will now automatically trigger WhatsApp text and promotional video outreach without any manual intervention!
+
