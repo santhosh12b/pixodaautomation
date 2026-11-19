@@ -8,7 +8,7 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://localhost:5432/whatsapp_dev',
+    url: process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgresql://localhost:5432/whatsapp_dev',
   },
 });
 

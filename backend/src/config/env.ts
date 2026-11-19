@@ -6,7 +6,9 @@ dotenv.config();
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(5000),
-  DATABASE_URL: z.string().optional().default('postgresql://postgres:password@localhost:5432/whatsapp_dev'),
+  DATABASE_URL: z.string().optional().default(
+    process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgresql://postgres:password@localhost:5432/whatsapp_dev'
+  ),
   WEBHOOK_SECRET: z.string().min(1).default('dev-webhook-secret-change-in-prod'),
   CRON_SECRET: z.string().min(1).default('dev-cron-secret-change-in-prod'),
   UNIPILE_DSN: z.string().optional().default('https://api.unipile.com:mock-token'),
