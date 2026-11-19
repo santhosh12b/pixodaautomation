@@ -13,7 +13,7 @@ export const envSchema = z.object({
   CRON_SECRET: z.string().min(1).default('dev-cron-secret-change-in-prod'),
   UNIPILE_DSN: z.string().optional().default('https://api.unipile.com:mock-token'),
   UNIPILE_ACCOUNT_ID: z.string().optional().default('mock-account-id'),
-  FRONTEND_URL: z.string().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().default(process.env.FRONTEND_SERVICE_URL || process.env.FRONTEND_URL || 'http://localhost:5173'),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 });
 

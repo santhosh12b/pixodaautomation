@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
+import { env } from '../src/config/env.js';
 import { leadService } from '../src/services/lead.service.js';
 
 describe('Task 8: Google Apps Script Payload Compatibility', () => {
@@ -30,7 +31,7 @@ describe('Task 8: Google Apps Script Payload Compatibility', () => {
 
     const res = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send(gasPayload);
 
     expect(res.status).toBe(200);

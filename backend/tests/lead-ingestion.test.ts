@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
+import { env } from '../src/config/env.js';
 import { campaignService } from '../src/services/campaign.service.js';
 import { leadService } from '../src/services/lead.service.js';
 
@@ -36,7 +37,7 @@ describe('Task 5: Lead Ingestion & Campaign Matching', () => {
   it('POST /api/leads/webhook should accept authorized batch leads, normalize phone, and match campaign', async () => {
     const res = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send({
         leads: [
           {
@@ -68,14 +69,14 @@ describe('Task 5: Lead Ingestion & Campaign Matching', () => {
     // First ingestion
     const res1 = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send({ leads: [payload] });
     expect(res1.body.summary.ingested).toBe(1);
 
     // Duplicate ingestion within cooldown
     const res2 = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send({ leads: [payload] });
     expect(res2.body.summary.duplicates).toBe(1);
   });
@@ -83,7 +84,7 @@ describe('Task 5: Lead Ingestion & Campaign Matching', () => {
   it('should mark non-consented lead as opted_out without enqueuing outreach', async () => {
     const res = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send({
         leads: [
           {

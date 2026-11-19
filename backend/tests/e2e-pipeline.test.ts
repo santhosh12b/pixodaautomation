@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
+import { env } from '../src/config/env.js';
 import { leadService } from '../src/services/lead.service.js';
 import { campaignService } from '../src/services/campaign.service.js';
 import { queueService } from '../src/services/queue.service.js';
@@ -65,7 +66,7 @@ describe('Task 15: Full End-to-End Automation Pipeline', () => {
 
     const webhookRes = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send(sheetLeadPayload);
 
     expect(webhookRes.status).toBe(200);
@@ -76,7 +77,7 @@ describe('Task 15: Full End-to-End Automation Pipeline', () => {
     // 4. Verify Duplicate Prevention on re-send
     const duplicateRes = await request(app)
       .post('/api/leads/webhook')
-      .set('X-Webhook-Secret', 'dev-webhook-secret-change-in-prod')
+      .set('X-Webhook-Secret', env.WEBHOOK_SECRET)
       .send(sheetLeadPayload);
     expect(duplicateRes.status).toBe(200);
     expect(duplicateRes.body.summary.duplicates).toBe(1);
@@ -84,7 +85,7 @@ describe('Task 15: Full End-to-End Automation Pipeline', () => {
     // 5. Trigger Queue Processing (Step 1: Text message delivery)
     const queueStep1Res = await request(app)
       .post('/api/queue/process')
-      .set('X-Cron-Secret', 'dev-cron-secret-change-in-prod')
+      .set('X-Cron-Secret', env.CRON_SECRET)
       .send({ batchSize: 10 });
 
     expect(queueStep1Res.status).toBe(200);
@@ -95,7 +96,7 @@ describe('Task 15: Full End-to-End Automation Pipeline', () => {
     queueService.resetRunAtForTesting(`lead_${lead.id}_video_${campaignId}`);
     const queueStep2Res = await request(app)
       .post('/api/queue/process')
-      .set('X-Cron-Secret', 'dev-cron-secret-change-in-prod')
+      .set('X-Cron-Secret', env.CRON_SECRET)
       .send({ batchSize: 10 });
     expect(queueStep2Res.status).toBe(200);
 
