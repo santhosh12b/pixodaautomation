@@ -27,3 +27,4 @@ export function validateEnv(config: Record<string, unknown> = process.env): Env 
 }
 
 export const env = validateEnv(process.env);
+

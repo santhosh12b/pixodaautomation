@@ -20,3 +20,4 @@ export function requireWebhookSecret(req: Request, res: Response, next: NextFunc
 
   next();
 }
+

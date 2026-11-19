@@ -55,3 +55,4 @@ export async function deleteMediaHandler(req: Request, res: Response) {
     message: `Media asset ${id} deleted`,
   });
 }
+

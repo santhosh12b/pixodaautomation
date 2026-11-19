@@ -133,3 +133,4 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [campaigns.id],
   }),
 }));
+

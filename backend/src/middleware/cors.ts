@@ -31,3 +31,4 @@ export function configureCors() {
     optionsSuccessStatus: 204,
   });
 }
+

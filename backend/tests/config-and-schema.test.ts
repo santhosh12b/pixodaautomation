@@ -61,3 +61,4 @@ describe('Task 1: Config and Schema Foundation', () => {
     expect(db).toBeDefined();
   });
 });
+

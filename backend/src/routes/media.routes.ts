@@ -12,3 +12,4 @@ router.post('/upload', uploadMediaHandler);
 router.delete('/:id', deleteMediaHandler);
 
 export default router;
+

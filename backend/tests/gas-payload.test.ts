@@ -39,3 +39,4 @@ describe('Task 8: Google Apps Script Payload Compatibility', () => {
     expect(res.body.leads[0].phone).toBe('+15553214321');
   });
 });
+

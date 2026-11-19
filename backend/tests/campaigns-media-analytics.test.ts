@@ -74,3 +74,4 @@ describe('Task 7: Campaigns, Media Assets & Analytics APIs', () => {
     expect(Array.isArray(chartRes.body.funnel)).toBe(true);
   });
 });
+

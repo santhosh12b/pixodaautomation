@@ -41,3 +41,4 @@ describe('Task 3: Unipile WhatsApp & Blob Services', () => {
     expect(result.size).toBeGreaterThan(0);
   });
 });
+

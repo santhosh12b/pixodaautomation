@@ -65,3 +65,4 @@ export class BlobService {
 }
 
 export const blobService = new BlobService();
+
