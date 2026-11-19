@@ -16,7 +16,8 @@
     },
     "frontend": {
       "root": "frontend",
-      "framework": "vite"
+      "framework": "vite",
+      "outputDirectory": "dist"
     }
   },
   "crons": [
@@ -34,6 +35,12 @@
     },
     {
       "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/",
       "destination": {
         "service": "backend"
       }
