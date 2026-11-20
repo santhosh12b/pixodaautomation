@@ -10,10 +10,10 @@ async function seed() {
     const videoId = uuidv4();
     await db.insert(mediaAssets).values({
       id: videoId,
-      title: 'AutoWhatsApp 60s Demo Overview',
+      title: 'The Editing Crew - AI Real Estate Sample Video',
       description: 'Introductory promotional video explaining WhatsApp automation features',
-      blobUrl: 'https://mock-blob.vercel-storage.com/videos/autowhatsapp-demo.mp4',
-      fileSize: 4850000,
+      blobUrl: 'https://pixodaautomation-frontend.vercel.app/sample-ai-video.mp4',
+      fileSize: 33349155,
       mimeType: 'video/mp4',
     }).onConflictDoNothing();
     console.log('✅ Seeded promotional video asset');

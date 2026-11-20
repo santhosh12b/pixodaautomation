@@ -34,9 +34,9 @@ export const VideoLibraryPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900">Promotional Video Library</h3>
+          <h3 className="text-base font-bold text-slate-900">Media & Video Library</h3>
           <p className="text-xs text-slate-500">
-            High-converting video assets hosted on Vercel Blob and delivered via Unipile
+            Sample brand videos and PDF pricing brochures delivered via WhatsApp
           </p>
         </div>
 
@@ -45,7 +45,7 @@ export const VideoLibraryPage: React.FC = () => {
           icon={<Plus className="w-4 h-4" />}
           onClick={() => setIsUploadOpen(true)}
         >
-          Upload Video Asset
+          Add Media Asset
         </Button>
       </div>
 

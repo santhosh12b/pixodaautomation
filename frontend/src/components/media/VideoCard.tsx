@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MediaAsset } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Video, Copy, Trash2, Check, ExternalLink } from 'lucide-react';
+import { Video, Copy, Trash2, Check, ExternalLink, FileText } from 'lucide-react';
 
 interface VideoCardProps {
   asset: MediaAsset;
@@ -23,9 +23,24 @@ export const VideoCard: React.FC<VideoCardProps> = ({ asset, onDelete, isDeletin
 
   return (
     <Card className="overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-      {/* Video Preview */}
+      {/* Video / Media Preview */}
       <div className="relative bg-slate-900 aspect-video flex items-center justify-center">
-        {asset.blobUrl && !asset.blobUrl.includes('mock') ? (
+        {asset.mimeType === 'application/pdf' ? (
+          <div className="flex flex-col items-center justify-center text-slate-300 gap-2 p-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-900/50 text-blue-400 flex items-center justify-center">
+              <FileText className="w-6 h-6" />
+            </div>
+            <span className="text-xs font-semibold text-slate-200">PDF Document Brochure</span>
+            <a
+              href={asset.blobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-blue-400 hover:underline flex items-center gap-1"
+            >
+              Open PDF Document <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        ) : asset.blobUrl && !asset.blobUrl.includes('mock') ? (
           <video
             src={asset.blobUrl}
             controls
@@ -37,7 +52,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ asset, onDelete, isDeletin
             <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400">
               <Video className="w-6 h-6" />
             </div>
-            <span className="text-xs font-semibold text-slate-300">Vercel Blob Video Asset</span>
+            <span className="text-xs font-semibold text-slate-300">Video Asset</span>
             <span className="text-[10px] text-slate-500 font-mono truncate max-w-[200px]">{asset.title}</span>
           </div>
         )}
