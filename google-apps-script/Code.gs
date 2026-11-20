@@ -71,10 +71,11 @@ function processNewLeads() {
 
   const headers = data[0].map(h => String(h || '').trim());
   
-  // Find column indices
-  let nameCol = headers.findIndex(h => /^(name|full\s*name|lead\s*name|contact)$/i.test(h));
-  let phoneCol = headers.findIndex(h => /^(phone|mobile|whatsapp|tel|contact\s*no)$/i.test(h));
-  let emailCol = headers.findIndex(h => /^(email|mail)$/i.test(h));
+  // Find column indices (supports Facebook/Meta Lead Ads & custom headers)
+  let nameCol = headers.findIndex(h => /^(name|full[\s_-]*name|lead[\s_-]*name|contact|customer[\s_-]*name)$/i.test(h));
+  let phoneCol = headers.findIndex(h => /^(phone|phone[\s_-]*number|mobile|mobile[\s_-]*number|whatsapp|tel|contact[\s_-]*no)$/i.test(h));
+  let emailCol = headers.findIndex(h => /^(email|email[\s_-]*address|mail)$/i.test(h));
+  let idCol = headers.findIndex(h => /^(id|lead[\s_-]*id)$/i.test(h));
   let consentCol = headers.findIndex(h => /^(consent|opt[\s_-]*in|permission)$/i.test(h));
   let processedCol = headers.findIndex(h => h.toLowerCase() === config.PROCESSED_COLUMN_NAME.toLowerCase());
 
@@ -101,7 +102,9 @@ function processNewLeads() {
     }
 
     const name = String(row[nameCol] || '').trim();
-    const phone = String(row[phoneCol] || '').trim();
+    let phone = String(row[phoneCol] || '').trim();
+    // Strip Facebook 'p:' prefix if present (e.g. p:+1234567890)
+    phone = phone.replace(/^p:/i, '').trim();
     const email = emailCol !== -1 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const rawConsent = consentCol !== -1 && row[consentCol] ? String(row[consentCol]).toLowerCase().trim() : 'yes';
 
@@ -117,7 +120,7 @@ function processNewLeads() {
       consentStatus = 'pending';
     }
 
-    // Build custom metadata from all other columns
+    // Build custom metadata from all other columns (city, package, campaign_name, etc.)
     const customData = {
       SheetRow: r + 1,
     };
@@ -127,8 +130,10 @@ function processNewLeads() {
       }
     }
 
+    const externalId = idCol !== -1 && row[idCol] ? String(row[idCol]).trim() : `sheet_${sheetName}_row_${r + 1}`;
+
     leadsToSend.push({
-      externalId: `sheet_${sheetName}_row_${r + 1}`,
+      externalId,
       name,
       phone,
       email: email || undefined,
