@@ -113,6 +113,7 @@ export class CampaignService {
       const list = await db.query.campaigns.findMany({
         with: {
           videoAsset: true,
+          documentAsset: true,
         },
         orderBy: desc(campaigns.createdAt),
       });
