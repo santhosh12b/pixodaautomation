@@ -110,7 +110,14 @@ export class LeadService {
 
         const videoAsset = campaign.videoAsset ? {
           url: campaign.videoAsset.blobUrl,
+          caption: campaign.videoCaption || 'Pls find these sample we did for other brands',
           delaySeconds: campaign.videoDelaySeconds,
+        } : undefined;
+
+        const documentAsset = campaign.documentAsset ? {
+          url: campaign.documentAsset.blobUrl,
+          caption: campaign.documentCaption || 'Please refer to the PDF above for video types and pricing packages 👆',
+          delaySeconds: campaign.documentDelaySeconds,
         } : undefined;
 
         await queueService.enqueue({
@@ -122,6 +129,7 @@ export class LeadService {
             phone: lead.phone,
             text: renderedText,
             videoAsset,
+            documentAsset,
           },
         });
       }

@@ -5,7 +5,7 @@ import { Campaign, MediaAsset } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { TemplateEditor } from './TemplateEditor';
-import { X, Video, ShieldAlert, Sparkles } from 'lucide-react';
+import { X, Video, ShieldAlert, Sparkles, FileText } from 'lucide-react';
 
 interface CampaignModalProps {
   isOpen: boolean;
@@ -24,9 +24,13 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
   const [description, setDescription] = useState('');
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetTab, setSheetTab] = useState('Sheet1');
-  const [messageTemplate, setMessageTemplate] = useState('Hi {{name}}, welcome! Here is an exclusive update for you.');
+  const [messageTemplate, setMessageTemplate] = useState('Hi {{name}},\nThank you for enquiring with us regarding AI videos');
   const [videoAssetId, setVideoAssetId] = useState('');
+  const [videoCaption, setVideoCaption] = useState('Pls find these sample we did for other brands');
   const [videoDelaySeconds, setVideoDelaySeconds] = useState(5);
+  const [documentAssetId, setDocumentAssetId] = useState('');
+  const [documentCaption, setDocumentCaption] = useState('Please refer to the PDF above for video types and pricing packages 👆');
+  const [documentDelaySeconds, setDocumentDelaySeconds] = useState(5);
   const [cooldownHours, setCooldownHours] = useState(24);
   const [status, setStatus] = useState<'active' | 'draft' | 'paused'>('active');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +53,11 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       setSheetTab(campaignToEdit.sheetTab || 'Sheet1');
       setMessageTemplate(campaignToEdit.messageTemplate);
       setVideoAssetId(campaignToEdit.videoAssetId || '');
+      setVideoCaption(campaignToEdit.videoCaption || 'Pls find these sample we did for other brands');
       setVideoDelaySeconds(campaignToEdit.videoDelaySeconds ?? 5);
+      setDocumentAssetId(campaignToEdit.documentAssetId || '');
+      setDocumentCaption(campaignToEdit.documentCaption || 'Please refer to the PDF above for video types and pricing packages 👆');
+      setDocumentDelaySeconds(campaignToEdit.documentDelaySeconds ?? 5);
       setCooldownHours(campaignToEdit.cooldownHours ?? 24);
       setStatus(campaignToEdit.status as 'active' | 'draft' | 'paused');
     } else {
@@ -57,9 +65,13 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       setDescription('');
       setSheetUrl('');
       setSheetTab('Sheet1');
-      setMessageTemplate('Hi {{name}}, thanks for reaching out! We have a special overview ready for {{phone}}.');
+      setMessageTemplate('Hi {{name}},\nThank you for enquiring with us regarding AI videos');
       setVideoAssetId('');
+      setVideoCaption('Pls find these sample we did for other brands');
       setVideoDelaySeconds(5);
+      setDocumentAssetId('');
+      setDocumentCaption('Please refer to the PDF above for video types and pricing packages 👆');
+      setDocumentDelaySeconds(5);
       setCooldownHours(24);
       setStatus('active');
     }
@@ -92,7 +104,11 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
           sheetTab,
           messageTemplate,
           videoAssetId: videoAssetId || undefined,
+          videoCaption: videoCaption || undefined,
           videoDelaySeconds,
+          documentAssetId: documentAssetId || undefined,
+          documentCaption: documentCaption || undefined,
+          documentDelaySeconds,
           cooldownHours,
           status,
         });
@@ -104,7 +120,11 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
           sheetTab,
           messageTemplate,
           videoAssetId: videoAssetId || undefined,
+          videoCaption: videoCaption || undefined,
           videoDelaySeconds,
+          documentAssetId: documentAssetId || undefined,
+          documentCaption: documentCaption || undefined,
+          documentDelaySeconds,
           cooldownHours,
           status,
         });
@@ -202,12 +222,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
           {/* Template Editor */}
           <TemplateEditor value={messageTemplate} onChange={setMessageTemplate} />
 
-          {/* Promotional Video Selection */}
+          {/* Step 2: Promotional Video Selection */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Video className="w-4 h-4 text-emerald-600" />
-                Step 2: Promotional Video Follow-up
+                Step 2: Sample Video Follow-up
               </span>
               <span className="text-[11px] text-slate-500">Sent automatically after text</span>
             </div>
@@ -220,8 +240,8 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                   onChange={(e) => setVideoAssetId(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 >
-                  <option value="">No Promotional Video (Text Only)</option>
-                  {mediaAssets.map((asset) => (
+                  <option value="">No Promotional Video (Skip Step)</option>
+                  {mediaAssets.filter(a => a.mimeType.startsWith('video/')).map((asset) => (
                     <option key={asset.id} value={asset.id}>
                       {asset.title} ({(asset.fileSize / (1024 * 1024)).toFixed(1)} MB)
                     </option>
@@ -241,6 +261,73 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                 />
               </div>
             </div>
+
+            {videoAssetId && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Video Message Caption</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Pls find these sample we did for other brands"
+                  value={videoCaption}
+                  onChange={(e) => setVideoCaption(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Step 3: PDF Document / Pricing Brochure Follow-up */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-blue-600" />
+                Step 3: PDF Document / Pricing Brochure Follow-up
+              </span>
+              <span className="text-[11px] text-slate-500">Sent automatically after video</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Select PDF / Document Asset</label>
+                <select
+                  value={documentAssetId}
+                  onChange={(e) => setDocumentAssetId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="">No PDF Document (Skip Step)</option>
+                  {mediaAssets.map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.title} ({asset.mimeType.includes('pdf') ? 'PDF' : 'Media'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Delay After Video (Seconds)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={300}
+                  value={documentDelaySeconds}
+                  onChange={(e) => setDocumentDelaySeconds(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {documentAssetId && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">PDF Message Caption</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Please refer to the PDF above for video types and pricing packages 👆"
+                  value={documentCaption}
+                  onChange={(e) => setDocumentCaption(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            )}
           </div>
 
           {/* Cooldown Settings */}

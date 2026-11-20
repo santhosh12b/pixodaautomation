@@ -31,7 +31,11 @@ export const campaigns = pgTable('campaigns', {
   sheetTab: text('sheet_tab'),
   messageTemplate: text('message_template').notNull(),
   videoAssetId: uuid('video_asset_id'),
+  videoCaption: text('video_caption'),
   videoDelaySeconds: integer('video_delay_seconds').default(5).notNull(),
+  documentAssetId: uuid('document_asset_id'),
+  documentCaption: text('document_caption'),
+  documentDelaySeconds: integer('document_delay_seconds').default(5).notNull(),
   cooldownHours: integer('cooldown_hours').default(24).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -55,7 +59,7 @@ export const mediaAssets = pgTable('media_assets', {
 export const queueJobs = pgTable('queue_jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   idempotencyKey: text('idempotency_key').notNull(),
-  type: text('type', { enum: ['send_text', 'send_video', 'sync_sheet'] }).notNull(),
+  type: text('type', { enum: ['send_text', 'send_video', 'send_document', 'sync_sheet'] }).notNull(),
   leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
   campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
   payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
@@ -106,6 +110,10 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
 export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
   videoAsset: one(mediaAssets, {
     fields: [campaigns.videoAssetId],
+    references: [mediaAssets.id],
+  }),
+  documentAsset: one(mediaAssets, {
+    fields: [campaigns.documentAssetId],
     references: [mediaAssets.id],
   }),
   leads: many(leads),

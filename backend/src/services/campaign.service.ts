@@ -12,9 +12,17 @@ export interface CampaignRecord {
   sheetTab: string | null;
   messageTemplate: string;
   videoAssetId: string | null;
+  videoCaption: string | null;
   videoDelaySeconds: number;
+  documentAssetId: string | null;
+  documentCaption: string | null;
+  documentDelaySeconds: number;
   cooldownHours: number;
   videoAsset?: {
+    blobUrl: string;
+    title: string;
+  } | null;
+  documentAsset?: {
     blobUrl: string;
     title: string;
   } | null;
@@ -47,6 +55,7 @@ export class CampaignService {
         where: eq(campaigns.status, 'active'),
         with: {
           videoAsset: true,
+          documentAsset: true,
         },
         orderBy: desc(campaigns.createdAt),
       });
@@ -123,6 +132,7 @@ export class CampaignService {
         where: eq(campaigns.id, id),
         with: {
           videoAsset: true,
+          documentAsset: true,
         },
       });
       return (campaign as unknown as CampaignRecord) || null;
@@ -139,7 +149,11 @@ export class CampaignService {
     sheetTab?: string;
     messageTemplate: string;
     videoAssetId?: string;
+    videoCaption?: string;
     videoDelaySeconds?: number;
+    documentAssetId?: string;
+    documentCaption?: string;
+    documentDelaySeconds?: number;
     cooldownHours?: number;
   }): Promise<CampaignRecord> {
     const id = uuidv4();
@@ -153,9 +167,14 @@ export class CampaignService {
       sheetTab: data.sheetTab || 'Sheet1',
       messageTemplate: data.messageTemplate,
       videoAssetId: data.videoAssetId || null,
+      videoCaption: data.videoCaption || null,
       videoDelaySeconds: data.videoDelaySeconds ?? 5,
+      documentAssetId: data.documentAssetId || null,
+      documentCaption: data.documentCaption || null,
+      documentDelaySeconds: data.documentDelaySeconds ?? 5,
       cooldownHours: data.cooldownHours ?? 24,
       videoAsset: null,
+      documentAsset: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -175,7 +194,11 @@ export class CampaignService {
         sheetTab: record.sheetTab,
         messageTemplate: record.messageTemplate,
         videoAssetId: record.videoAssetId,
+        videoCaption: record.videoCaption,
         videoDelaySeconds: record.videoDelaySeconds,
+        documentAssetId: record.documentAssetId,
+        documentCaption: record.documentCaption,
+        documentDelaySeconds: record.documentDelaySeconds,
         cooldownHours: record.cooldownHours,
       }).returning();
 

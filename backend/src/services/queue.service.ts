@@ -6,7 +6,7 @@ import { UnipileService, unipileService as defaultUnipile } from './unipile.serv
 
 export interface EnqueueJobParams {
   idempotencyKey: string;
-  type: 'send_text' | 'send_video' | 'sync_sheet';
+  type: 'send_text' | 'send_video' | 'send_document' | 'sync_sheet';
   leadId?: string;
   campaignId?: string;
   payload: Record<string, unknown>;
@@ -17,7 +17,7 @@ export interface EnqueueJobParams {
 export interface QueueJobRecord {
   id: string;
   idempotencyKey: string;
-  type: 'send_text' | 'send_video' | 'sync_sheet';
+  type: 'send_text' | 'send_video' | 'send_document' | 'sync_sheet';
   leadId: string | null;
   campaignId: string | null;
   payload: Record<string, unknown>;
@@ -247,8 +247,10 @@ export class QueueService {
         }
       }
 
-      // Check if video chaining is required
-      const videoAsset = job.payload.videoAsset as { url?: string; delaySeconds?: number } | undefined;
+      // Check if video or document chaining is required
+      const videoAsset = job.payload.videoAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+      const documentAsset = job.payload.documentAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+
       if (videoAsset && videoAsset.url) {
         const delayMs = (videoAsset.delaySeconds ?? 5) * 1000;
         const videoRunAt = new Date(Date.now() + delayMs);
@@ -260,9 +262,25 @@ export class QueueService {
           payload: {
             phone,
             videoUrl: videoAsset.url,
-            caption: String(job.payload.videoCaption || ''),
+            caption: videoAsset.caption || String(job.payload.videoCaption || 'Pls find these sample we did for other brands'),
+            documentAsset,
           },
           runAt: videoRunAt,
+        });
+      } else if (documentAsset && documentAsset.url) {
+        const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
+        const docRunAt = new Date(Date.now() + delayMs);
+        await this.enqueue({
+          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}`,
+          type: 'send_document',
+          leadId: job.leadId || undefined,
+          campaignId: job.campaignId || undefined,
+          payload: {
+            phone,
+            documentUrl: documentAsset.url,
+            caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+          },
+          runAt: docRunAt,
         });
       }
     } else if (job.type === 'send_video') {
@@ -290,6 +308,52 @@ export class QueueService {
           });
         } catch (dbErr) {
           console.warn('DB recording video message warning:', dbErr);
+        }
+      }
+
+      // Chain PDF document step after video if configured
+      const documentAsset = job.payload.documentAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+      if (documentAsset && documentAsset.url) {
+        const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
+        const docRunAt = new Date(Date.now() + delayMs);
+        await this.enqueue({
+          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}`,
+          type: 'send_document',
+          leadId: job.leadId || undefined,
+          campaignId: job.campaignId || undefined,
+          payload: {
+            phone,
+            documentUrl: documentAsset.url,
+            caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+          },
+          runAt: docRunAt,
+        });
+      }
+    } else if (job.type === 'send_document') {
+      const documentUrl = String(job.payload.documentUrl || '');
+      const caption = String(job.payload.caption || '');
+
+      const response = await this.unipile.sendMediaMessage({
+        recipientPhone: phone,
+        mediaUrl: documentUrl,
+        caption,
+        mimeType: 'application/pdf',
+      });
+
+      if (!this.isMockStore && job.leadId) {
+        try {
+          await db.insert(messages).values({
+            leadId: job.leadId,
+            campaignId: job.campaignId,
+            unipileMessageId: response.messageId,
+            direction: 'outbound',
+            type: 'document',
+            content: caption,
+            mediaUrl: documentUrl,
+            deliveryStatus: 'sent',
+          });
+        } catch (dbErr) {
+          console.warn('DB recording document message warning:', dbErr);
         }
       }
     }

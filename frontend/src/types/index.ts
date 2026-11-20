@@ -22,9 +22,17 @@ export interface Campaign {
   sheetTab: string | null;
   messageTemplate: string;
   videoAssetId: string | null;
+  videoCaption: string | null;
   videoDelaySeconds: number;
+  documentAssetId: string | null;
+  documentCaption: string | null;
+  documentDelaySeconds: number;
   cooldownHours: number;
   videoAsset?: {
+    blobUrl: string;
+    title: string;
+  } | null;
+  documentAsset?: {
     blobUrl: string;
     title: string;
   } | null;
