@@ -60,14 +60,36 @@ function setupMinuteTrigger() {
  */
 function processNewLeads() {
   const config = getConfig();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Find the sheet that has lead headers (or default to active sheet)
+  let sheet = ss.getActiveSheet();
+  let data = sheet.getDataRange().getValues();
+  
+  // If active sheet is empty or has no data rows, search all sheets for lead headers
+  if (data.length < 2) {
+    const sheets = ss.getSheets();
+    for (let s = 0; s < sheets.length; s++) {
+      const sData = sheets[s].getDataRange().getValues();
+      if (sData.length >= 2) {
+        const firstRow = sData[0].map(h => String(h || '').toLowerCase());
+        if (firstRow.some(h => /^(name|full[\s_-]*name|phone|phone[\s_-]*number)$/i.test(h))) {
+          sheet = sheets[s];
+          data = sData;
+          break;
+        }
+      }
+    }
+  }
+
   const sheetName = sheet.getName();
-  const data = sheet.getDataRange().getValues();
 
   if (data.length < 2) {
-    Logger.log('No data found in sheet.');
+    Logger.log(`⚠️ Sheet "${sheetName}" only has headers in Row 1. Please add at least one lead row in Row 2 to process.`);
     return;
   }
+
+  Logger.log(`📋 Scanning "${sheetName}" (${data.length - 1} data rows found)...`);
 
   const headers = data[0].map(h => String(h || '').trim());
   
