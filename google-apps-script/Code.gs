@@ -55,6 +55,38 @@ function setupMinuteTrigger() {
 }
 
 /**
+ * OPTION C HELPER:
+ * One-click helper to mark rows 2 through the last current row as "SKIPPED".
+ * This ensures past leads are NOT messaged, and ONLY new leads arriving
+ * at row 43+ will trigger automated WhatsApp messages!
+ */
+function markExistingRowsAsSkipped() {
+  const config = getConfig();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow < 2) {
+    Logger.log('No data rows to mark as skipped.');
+    return;
+  }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  let processedCol = headers.findIndex(h => String(h || '').trim().toLowerCase() === config.PROCESSED_COLUMN_NAME.toLowerCase());
+  
+  if (processedCol === -1) {
+    processedCol = headers.length;
+    sheet.getRange(1, processedCol + 1).setValue(config.PROCESSED_COLUMN_NAME);
+  }
+
+  const numRows = lastRow - 1;
+  const skippedValues = Array(numRows).fill(['SKIPPED']);
+  sheet.getRange(2, processedCol + 1, numRows, 1).setValues(skippedValues);
+
+  Logger.log(`✅ Marked rows 2 to ${lastRow} as SKIPPED in column "${config.PROCESSED_COLUMN_NAME}".`);
+}
+
+/**
  * Main function executed every minute (or manually by clicking Run).
  */
 function processNewLeads() {
