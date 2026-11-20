@@ -11,9 +11,9 @@ export const envSchema = z.object({
   ),
   WEBHOOK_SECRET: z.string().min(1).default('dev-webhook-secret-change-in-prod'),
   CRON_SECRET: z.string().min(1).default('dev-cron-secret-change-in-prod'),
-  UNIPILE_DSN: z.string().optional().default('https://api52.unipile.com:18234'),
-  UNIPILE_API_KEY: z.string().optional(),
-  UNIPILE_ACCOUNT_ID: z.string().optional().default('XtNydP-1SqCjFa49UP-KeA'),
+  UNIPILE_DSN: z.string().optional().default(process.env.UNIPILE_DSN || 'https://api52.unipile.com:18234'),
+  UNIPILE_API_KEY: z.string().optional().default(process.env.UNIPILE_API_KEY || 'Rx1aW1rw.5sbbxoN7NuMHUJJHyBvpx7CLh9Q1QyB/Wvya1eDeX6w='),
+  UNIPILE_ACCOUNT_ID: z.string().optional().default(process.env.UNIPILE_ACCOUNT_ID || 'XtNydP-1SqCjFa49UP-KeA'),
   FRONTEND_URL: z.string().default(process.env.FRONTEND_SERVICE_URL || process.env.FRONTEND_URL || 'http://localhost:5173'),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 });
