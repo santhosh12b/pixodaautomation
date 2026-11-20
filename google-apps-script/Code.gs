@@ -11,10 +11,10 @@
 // ==========================================
 const DEFAULT_CONFIG = {
   // Backend API URL (Vercel deployment or ngrok/local URL)
-  BACKEND_URL: 'https://your-backend-app.vercel.app/api/leads/webhook',
+  BACKEND_URL: 'https://pixodaautomation.vercel.app/api/leads/webhook',
   
   // Must match WEBHOOK_SECRET in backend .env
-  WEBHOOK_SECRET: 'dev-webhook-secret-change-in-prod',
+  WEBHOOK_SECRET: 'my_secure_webhook_secret_2026',
   
   // Name of status column to write to
   PROCESSED_COLUMN_NAME: 'Automated_Status',
