@@ -39,11 +39,15 @@ export class LeadService {
   }
 
   normalizePhone(phone: string): string {
+    const rawDigits = phone.replace(/\D/g, '');
+    // Auto-detect 10-digit Indian phone numbers (e.g. 9360263737) and add +91
+    if (rawDigits.length === 10 && /^[6-9]/.test(rawDigits)) {
+      return `+91${rawDigits}`;
+    }
     const cleaned = phone.replace(/[^\d+]/g, '');
     if (cleaned.startsWith('+')) {
       return cleaned;
     }
-    // Assume international prefix or standard 10/11 digit
     return `+${cleaned}`;
   }
 
