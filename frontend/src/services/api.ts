@@ -18,9 +18,11 @@ const API_BASE = import.meta.env.VITE_API_URL ||
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tec_auth_token') : null;
   const res = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
     ...options,
@@ -42,6 +44,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Authentication
+  login: async (credentials: { username: string; password: string }): Promise<{ status: string; token: string; user: { username: string; name: string } }> => {
+    return request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  },
+
   // Analytics
   getDashboardMetrics: async (): Promise<{ metrics: DashboardMetrics }> => {
     return request<{ metrics: DashboardMetrics }>('/api/analytics/dashboard');

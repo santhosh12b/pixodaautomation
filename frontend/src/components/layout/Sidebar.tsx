@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
   Send, 
@@ -8,7 +9,9 @@ import {
   Video, 
   BarChart3, 
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  LogOut,
+  User
 } from 'lucide-react';
 
 const navigation = [
@@ -21,6 +24,8 @@ const navigation = [
 ];
 
 export const Sidebar: React.FC = () => {
+  const { user, logout } = useAuth();
+
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 min-h-screen text-slate-300">
       {/* Brand logo & title */}
@@ -73,6 +78,28 @@ export const Sidebar: React.FC = () => {
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>Neon Atomic Lock Ready</span>
         </div>
+      </div>
+
+      {/* User Profile & Logout */}
+      <div className="p-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xs shrink-0">
+            TC
+          </div>
+          <div className="min-w-0 truncate">
+            <p className="text-xs font-semibold text-white truncate">The Editing Crew</p>
+            <p className="text-[10px] text-slate-400 truncate">@{user?.username || 'theeditingcrew'}</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={logout}
+          title="Sign out of AutoWhatsApp"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors shrink-0"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </aside>
   );

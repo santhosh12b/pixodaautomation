@@ -9,6 +9,7 @@ import inboxRoutes from './routes/inbox.routes.js';
 import campaignRoutes from './routes/campaign.routes.js';
 import mediaRoutes from './routes/media.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 export function createApp() {
   const app = express();
@@ -212,6 +213,7 @@ export function createApp() {
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api/media', mediaRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/auth', authRoutes);
 
   // 404 and Error handling
   app.use(notFoundHandler);

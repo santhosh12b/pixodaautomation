@@ -29,4 +29,21 @@ describe('Task 2: Express Application & Middleware', () => {
     expect(res.body.error).toBe('Not Found');
     expect(res.body.message).toContain('Route GET /api/unknown-endpoint not found');
   });
+
+  it('POST /api/auth/login should authenticate valid credentials and reject invalid ones', async () => {
+    // Valid login
+    const validRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'theeditingcrew', password: 'Dunesday@17' });
+    expect(validRes.status).toBe(200);
+    expect(validRes.body.token).toBeDefined();
+    expect(validRes.body.user.username).toBe('theeditingcrew');
+
+    // Invalid login
+    const invalidRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'theeditingcrew', password: 'WrongPassword' });
+    expect(invalidRes.status).toBe(401);
+    expect(invalidRes.body.error).toBe('Unauthorized');
+  });
 });
