@@ -19,6 +19,7 @@ export const AnalyticsPage: React.FC = () => {
   const dailyVolume = chartsData?.dailyVolume || [];
   const funnel = chartsData?.funnel || [];
   const campaignPerformance = chartsData?.campaignPerformance || [];
+  const kpis = chartsData?.kpis;
 
   return (
     <div className="space-y-6">
@@ -64,9 +65,11 @@ export const AnalyticsPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">98.4%</span>
+            <span className="text-2xl font-bold text-slate-900">
+              {isLoading ? '...' : `${kpis?.textOutreachRate ?? 0}%`}
+            </span>
             <span className="text-xs text-emerald-600 font-semibold flex items-center">
-              <ArrowUpRight className="w-3 h-3" /> +1.2%
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Live
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">First-touch text successfully received</p>
@@ -80,9 +83,11 @@ export const AnalyticsPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">81.6%</span>
+            <span className="text-2xl font-bold text-slate-900">
+              {isLoading ? '...' : `${kpis?.videoDeliveryRate ?? 0}%`}
+            </span>
             <span className="text-xs text-emerald-600 font-semibold flex items-center">
-              <ArrowUpRight className="w-3 h-3" /> +3.8%
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Live
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">Chained promotional video sent after text</p>
@@ -96,9 +101,11 @@ export const AnalyticsPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">63.3%</span>
+            <span className="text-2xl font-bold text-slate-900">
+              {isLoading ? '...' : `${kpis?.leadEngagementRate ?? 0}%`}
+            </span>
             <span className="text-xs text-emerald-600 font-semibold flex items-center">
-              <ArrowUpRight className="w-3 h-3" /> +5.4%
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Live
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">Read receipt or 2-way chat reply received</p>
@@ -155,18 +162,26 @@ export const AnalyticsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {campaignPerformance.map((c) => (
-                <tr key={c.name} className="hover:bg-slate-50/80">
-                  <td className="py-3.5 px-6 font-medium text-slate-900">{c.name}</td>
-                  <td className="py-3.5 px-6 font-mono text-xs">{c.sent} deliveries</td>
-                  <td className="py-3.5 px-6">
-                    <span className="font-semibold text-emerald-600">{c.responseRate}</span>
-                  </td>
-                  <td className="py-3.5 px-6 text-right">
-                    <Badge variant="success">Active Automations</Badge>
+              {campaignPerformance.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-slate-400 text-xs">
+                    No active campaign data found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                campaignPerformance.map((c) => (
+                  <tr key={c.name} className="hover:bg-slate-50/80">
+                    <td className="py-3.5 px-6 font-medium text-slate-900">{c.name}</td>
+                    <td className="py-3.5 px-6 font-mono text-xs">{c.sent} deliveries</td>
+                    <td className="py-3.5 px-6">
+                      <span className="font-semibold text-emerald-600">{c.responseRate}</span>
+                    </td>
+                    <td className="py-3.5 px-6 text-right">
+                      <Badge variant="success">Active Automations</Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </CardContent>

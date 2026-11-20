@@ -3,6 +3,7 @@ import {
   DailyVolumeData, 
   FunnelStage, 
   CampaignPerformance,
+  AnalyticsKPIs,
   Campaign,
   Lead,
   Conversation,
@@ -45,7 +46,7 @@ export const api = {
   getDashboardMetrics: async (): Promise<{ metrics: DashboardMetrics }> => {
     return request<{ metrics: DashboardMetrics }>('/api/analytics/dashboard');
   },
-  getCharts: async (): Promise<{ dailyVolume: DailyVolumeData[]; funnel: FunnelStage[]; campaignPerformance: CampaignPerformance[] }> => {
+  getCharts: async (): Promise<{ dailyVolume: DailyVolumeData[]; funnel: FunnelStage[]; campaignPerformance: CampaignPerformance[]; kpis?: AnalyticsKPIs }> => {
     return request('/api/analytics/charts');
   },
 

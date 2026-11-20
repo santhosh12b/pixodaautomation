@@ -103,3 +103,10 @@ export interface CampaignPerformance {
   responseRate: string;
 }
 
+export interface AnalyticsKPIs {
+  textOutreachRate: number;
+  videoDeliveryRate: number;
+  leadEngagementRate: number;
+}
+
+

@@ -47,7 +47,7 @@ export const DashboardPage: React.FC = () => {
         <MetricCard
           title="Total Ingested Leads"
           value={metricsLoading ? '...' : (metrics?.totalLeads ?? 0)}
-          change="+18.4%"
+          change="Synced"
           subtitle="From Google Sheets"
           icon={Users}
           iconColor="text-blue-600 bg-blue-50 border-blue-100"
@@ -55,23 +55,23 @@ export const DashboardPage: React.FC = () => {
         <MetricCard
           title="WhatsApp Sent"
           value={metricsLoading ? '...' : (metrics?.totalMessages ?? 0)}
-          change="+24.1%"
+          change="Dispatched"
           subtitle={`${metrics?.contactedLeads ?? 0} leads engaged`}
           icon={Send}
           iconColor="text-emerald-600 bg-emerald-50 border-emerald-100"
         />
         <MetricCard
           title="Delivery Rate"
-          value={metricsLoading ? '...' : `${metrics?.deliveryRate ?? 98.4}%`}
-          change="+1.2%"
+          value={metricsLoading ? '...' : `${metrics?.deliveryRate ?? 0}%`}
+          change="Real-time"
           subtitle="Delivered via Unipile"
           icon={CheckCircle}
           iconColor="text-teal-600 bg-teal-50 border-teal-100"
         />
         <MetricCard
           title="Message Read Rate"
-          value={metricsLoading ? '...' : `${metrics?.readRate ?? 72.8}%`}
-          change="+4.6%"
+          value={metricsLoading ? '...' : `${metrics?.readRate ?? 0}%`}
+          change="Real-time"
           subtitle="WhatsApp blue check receipts"
           icon={Eye}
           iconColor="text-purple-600 bg-purple-50 border-purple-100"

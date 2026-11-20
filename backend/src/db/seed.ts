@@ -34,79 +34,8 @@ async function seed() {
     }).onConflictDoNothing();
     console.log('✅ Seeded active campaign');
 
-    // 3. Create Sample Leads
-    const lead1Id = uuidv4();
-    const lead2Id = uuidv4();
-
-    await db.insert(leads).values([
-      {
-        id: lead1Id,
-        externalId: 'sheet_row_2',
-        name: 'Sarah Connor',
-        phone: '+15553214321',
-        email: 'sarah@example.com',
-        sourceSheet: 'Inbound Leads 2026',
-        customData: { Company: 'Cyberdyne', Interest: 'Enterprise Automation' },
-        consentStatus: 'granted',
-        status: 'contacted',
-        campaignId,
-      },
-      {
-        id: lead2Id,
-        externalId: 'sheet_row_3',
-        name: 'Bruce Wayne',
-        phone: '+15559876543',
-        email: 'bruce@wayne.test',
-        sourceSheet: 'Inbound Leads 2026',
-        customData: { Company: 'Wayne Enterprises', Interest: 'AI Outreach' },
-        consentStatus: 'granted',
-        status: 'converted',
-        campaignId,
-      },
-    ]).onConflictDoNothing();
-    console.log('✅ Seeded leads');
-
-    // 4. Create Messages
-    await db.insert(messages).values([
-      {
-        leadId: lead1Id,
-        campaignId,
-        unipileMessageId: `up_msg_${uuidv4()}`,
-        direction: 'outbound',
-        type: 'text',
-        content: 'Hi Sarah Connor, thanks for requesting details on Enterprise Automation! We have prepared your custom overview below.',
-        deliveryStatus: 'read',
-      },
-      {
-        leadId: lead1Id,
-        campaignId,
-        unipileMessageId: `up_media_${uuidv4()}`,
-        direction: 'outbound',
-        type: 'video',
-        content: 'AutoWhatsApp 60s Demo Overview',
-        mediaUrl: 'https://mock-blob.vercel-storage.com/videos/autowhatsapp-demo.mp4',
-        deliveryStatus: 'read',
-      },
-      {
-        leadId: lead2Id,
-        campaignId,
-        unipileMessageId: `up_msg_${uuidv4()}`,
-        direction: 'outbound',
-        type: 'text',
-        content: 'Hi Bruce Wayne, thanks for requesting details on AI Outreach! We have prepared your custom overview below.',
-        deliveryStatus: 'delivered',
-      },
-      {
-        leadId: lead2Id,
-        campaignId,
-        unipileMessageId: `up_reply_${uuidv4()}`,
-        direction: 'inbound',
-        type: 'text',
-        content: 'Looks great! Can we schedule a quick call tomorrow?',
-        deliveryStatus: 'read',
-      },
-    ]).onConflictDoNothing();
-    console.log('✅ Seeded message history');
+    // Sample leads and messages are skipped to maintain 100% real lead data.
+    console.log('ℹ️ Mock leads insertion skipped - real leads only.');
 
     console.log('🎉 Seeding completed successfully!');
   } catch (err) {

@@ -199,6 +199,23 @@ export class InboxService {
     }
   }
 
+  async getAllMessages(): Promise<MessageRecord[]> {
+    if (this.isMockStore) {
+      return Array.from(this.mockMessages.values()).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    }
+
+    try {
+      const list = await db
+        .select()
+        .from(messages)
+        .orderBy(asc(messages.timestamp));
+
+      return list as unknown as MessageRecord[];
+    } catch {
+      return Array.from(this.mockMessages.values()).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    }
+  }
+
   async listConversations(): Promise<ConversationSummary[]> {
     const allLeads = await leadService.listLeads();
     const conversations: ConversationSummary[] = [];
