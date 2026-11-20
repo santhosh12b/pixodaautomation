@@ -127,6 +127,10 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
     setVideoAssetIds(samples.length > 0 ? samples : videoAssets.map(a => a.id));
   };
 
+  const selectAllVideos = () => {
+    setVideoAssetIds(videoAssets.map(a => a.id));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -274,30 +278,41 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
               Videos will be delivered one-by-one via WhatsApp with automatic delay between each video.
             </p>
 
-            {/* Quick Actions */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-semibold text-slate-700">Select Videos & Order</span>
+            {/* Quick Actions & Multi-Select Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-white border border-slate-200">
               <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800">Multi-Select:</span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  {videoAssetIds.length} of {videoAssets.length} Selected
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={selectAllVideos}
+                  className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-[11px] font-bold text-white transition-colors"
+                >
+                  Select All ({videoAssets.length})
+                </button>
                 <button
                   type="button"
                   onClick={selectAllSampleVideos}
-                  className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                  className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-semibold text-slate-700 transition-colors"
                 >
-                  Select All 4 Samples
+                  Select 4 Samples
                 </button>
-                <span className="text-slate-300">•</span>
                 <button
                   type="button"
                   onClick={() => setVideoAssetIds([])}
-                  className="text-[11px] text-slate-400 hover:text-slate-600"
+                  className="px-2 py-1 rounded text-[11px] font-medium text-red-500 hover:bg-red-50 transition-colors"
                 >
-                  Clear
+                  Deselect All
                 </button>
               </div>
             </div>
 
             {/* Video List */}
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {videoAssets.length === 0 ? (
                 <div className="text-center py-4 text-xs text-slate-400">No promotional videos in library.</div>
               ) : (
@@ -311,7 +326,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                       onClick={() => toggleVideoSelection(asset.id)}
                       className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
                         isSelected
-                          ? 'bg-emerald-50/60 border-emerald-300 text-slate-900'
+                          ? 'bg-emerald-50/80 border-emerald-400 text-slate-900 shadow-xs'
                           : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/60'
                       }`}
                     >
@@ -366,9 +381,28 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
             {videoAssetIds.length > 0 && (
               <div className="space-y-3 pt-2 border-t border-slate-200/60">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Delay Between Videos (Seconds)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Delay Between Videos (Seconds)
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400">Quick:</span>
+                      {[0, 3, 5, 10].map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setVideoDelaySeconds(sec)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors ${
+                            videoDelaySeconds === sec
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {sec === 0 ? '⚡ 0s (At Once)' : `${sec}s`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input
                     type="number"
                     min={0}
@@ -378,7 +412,9 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    Waits this many seconds after text greeting, and between each subsequent sample video.
+                    {videoDelaySeconds === 0
+                      ? '⚡ 0s delay: All selected videos will be queued and delivered back-to-back at once.'
+                      : `⏳ ${videoDelaySeconds}s delay: Videos will be delivered one-by-one with a ${videoDelaySeconds}-second pause between each video.`}
                   </p>
                 </div>
 
