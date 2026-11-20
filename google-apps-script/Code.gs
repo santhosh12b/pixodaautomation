@@ -1,25 +1,27 @@
 /**
  * WhatsApp Lead Automation - Google Apps Script
+ * Sheet: TEC - Leads
  * 
- * Automatically scans Google Sheet rows every minute for new leads,
- * batches and delivers them to the Node.js Express backend API,
- * and marks rows as processed to guarantee zero duplicate submissions.
+ * Automatically polls the sheet for new Meta/Facebook Ads leads,
+ * parses Full Name, Phone Number, and Campaign metadata,
+ * sends them to the WhatsApp Automation API,
+ * and stamps the row with "PROCESSED: <timestamp>" to prevent duplicates.
  */
 
 // ==========================================
-// CONFIGURATION (Set via Script Properties or defaults below)
+// CONFIGURATION
 // ==========================================
 const DEFAULT_CONFIG = {
-  // Backend API URL (Vercel deployment or ngrok/local URL)
+  // Live Backend Webhook URL
   BACKEND_URL: 'https://pixodaautomation.vercel.app/api/leads/webhook',
   
-  // Must match WEBHOOK_SECRET in backend .env
+  // Webhook Secret (must match WEBHOOK_SECRET in backend .env)
   WEBHOOK_SECRET: 'my_secure_webhook_secret_2026',
   
-  // Name of status column to write to
+  // Status column header to track processed rows
   PROCESSED_COLUMN_NAME: 'Automated_Status',
   
-  // Maximum rows to process per run (bounded batch)
+  // Number of rows to process per minute run
   BATCH_SIZE: 25,
 };
 
@@ -34,11 +36,9 @@ function getConfig() {
 }
 
 /**
- * Sets up a time-driven trigger running every minute.
- * Run this function once from Extensions -> Apps Script.
+ * Run this ONCE from the editor to automate lead processing 24/7 every 1 minute.
  */
 function setupMinuteTrigger() {
-  // Clear any existing triggers for processNewLeads
   const existingTriggers = ScriptApp.getProjectTriggers();
   for (let i = 0; i < existingTriggers.length; i++) {
     if (existingTriggers[i].getHandlerFunction() === 'processNewLeads') {
@@ -46,70 +46,67 @@ function setupMinuteTrigger() {
     }
   }
 
-  // Create new 1-minute trigger
   ScriptApp.newTrigger('processNewLeads')
     .timeBased()
     .everyMinutes(1)
     .create();
 
-  Logger.log('✅ Automated 1-minute trigger installed successfully.');
+  Logger.log('✅ Automated 1-minute trigger installed successfully. New leads will be processed automatically.');
 }
 
 /**
- * Main polling function executed every minute.
+ * Main function executed every minute (or manually by clicking Run).
  */
 function processNewLeads() {
   const config = getConfig();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // Find the sheet that has lead headers (or default to active sheet)
-  let sheet = ss.getActiveSheet();
-  let data = sheet.getDataRange().getValues();
-  
-  // If active sheet is empty or has no data rows, search all sheets for lead headers
-  if (data.length < 2) {
-    const sheets = ss.getSheets();
-    for (let s = 0; s < sheets.length; s++) {
-      const sData = sheets[s].getDataRange().getValues();
-      if (sData.length >= 2) {
-        const firstRow = sData[0].map(h => String(h || '').toLowerCase());
-        if (firstRow.some(h => /^(name|full[\s_-]*name|phone|phone[\s_-]*number)$/i.test(h))) {
-          sheet = sheets[s];
-          data = sData;
-          break;
-        }
-      }
-    }
-  }
-
+  const sheet = ss.getActiveSheet();
+  const data = sheet.getDataRange().getValues();
   const sheetName = sheet.getName();
 
   if (data.length < 2) {
-    Logger.log(`⚠️ Sheet "${sheetName}" only has headers in Row 1. Please add at least one lead row in Row 2 to process.`);
+    Logger.log(`⚠️ Sheet "${sheetName}" has no data rows yet.`);
     return;
   }
 
-  Logger.log(`📋 Scanning "${sheetName}" (${data.length - 1} data rows found)...`);
-
-  const headers = data[0].map(h => String(h || '').trim());
+  const rawHeaders = data[0];
+  const headers = rawHeaders.map(h => String(h || '').trim());
   
-  // Find column indices (supports Facebook/Meta Lead Ads & custom headers)
-  let nameCol = headers.findIndex(h => /^(name|full[\s_-]*name|lead[\s_-]*name|contact|customer[\s_-]*name)$/i.test(h));
-  let phoneCol = headers.findIndex(h => /^(phone|phone[\s_-]*number|mobile|mobile[\s_-]*number|whatsapp|tel|contact[\s_-]*no)$/i.test(h));
-  let emailCol = headers.findIndex(h => /^(email|email[\s_-]*address|mail)$/i.test(h));
-  let idCol = headers.findIndex(h => /^(id|lead[\s_-]*id)$/i.test(h));
-  let consentCol = headers.findIndex(h => /^(consent|opt[\s_-]*in|permission)$/i.test(h));
-  let processedCol = headers.findIndex(h => h.toLowerCase() === config.PROCESSED_COLUMN_NAME.toLowerCase());
+  // 1. Identify Name Column (Priority: full_name, name, or any non-ad name)
+  let nameCol = headers.findIndex(h => /^(full[\s_-]*name|name|lead[\s_-]*name|customer[\s_-]*name|contact[\s_-]*name)$/i.test(h));
+  if (nameCol === -1) {
+    nameCol = headers.findIndex(h => /name/i.test(h) && !/(ad|adset|campaign|form|page|file|sheet)[\s_-]*name/i.test(h));
+  }
 
-  // If no processed column exists, create one at the end
+  // 2. Identify Phone Column (Priority: phone_number, phone, mobile, whatsapp)
+  let phoneCol = headers.findIndex(h => /^(phone|phone[\s_-]*number|mobile|mobile[\s_-]*number|whatsapp|tel|contact[\s_-]*no)$/i.test(h));
+  if (phoneCol === -1) {
+    phoneCol = headers.findIndex(h => /(phone|mobile|whatsapp)/i.test(h));
+  }
+
+  // 3. Identify Email Column
+  let emailCol = headers.findIndex(h => /^(email|email[\s_-]*address|mail)$/i.test(h));
+  if (emailCol === -1) {
+    emailCol = headers.findIndex(h => /(email|mail)/i.test(h));
+  }
+
+  // 4. Identify External ID (e.g. Meta lead id 'l:4605...')
+  let idCol = headers.findIndex(h => /^(id|lead[\s_-]*id)$/i.test(h));
+
+  // 5. Identify or Create Status Column
+  let processedCol = headers.findIndex(h => h.toLowerCase() === config.PROCESSED_COLUMN_NAME.toLowerCase());
   if (processedCol === -1) {
     processedCol = headers.length;
     sheet.getRange(1, processedCol + 1).setValue(config.PROCESSED_COLUMN_NAME);
+    Logger.log(`Created status column "${config.PROCESSED_COLUMN_NAME}" at column ${processedCol + 1}`);
   }
 
-  // Fallbacks if header names are generic
-  if (nameCol === -1) nameCol = 0;
-  if (phoneCol === -1) phoneCol = 1;
+  if (nameCol === -1 || phoneCol === -1) {
+    Logger.log(`❌ ERROR: Could not find Name or Phone column in headers: [${headers.join(', ')}]`);
+    return;
+  }
+
+  Logger.log(`📋 Scanning "${sheetName}" (${data.length - 1} rows). Name Col: "${headers[nameCol]}", Phone Col: "${headers[phoneCol]}"`);
 
   const leadsToSend = [];
   const rowsToUpdate = [];
@@ -118,31 +115,24 @@ function processNewLeads() {
     const row = data[r];
     const statusVal = row[processedCol] ? String(row[processedCol]).trim() : '';
 
-    // If already processed or row is blank, skip
+    // If already processed or manually marked as SKIPPED, skip row
     if (statusVal.startsWith('PROCESSED') || statusVal === 'SKIPPED') {
       continue;
     }
 
     const name = String(row[nameCol] || '').trim();
     let phone = String(row[phoneCol] || '').trim();
-    // Strip Facebook 'p:' prefix if present (e.g. p:+1234567890)
-    phone = phone.replace(/^p:/i, '').trim();
+
+    // Clean Facebook/Meta Lead Ads prefix (e.g. 'p:+919360263737' -> '+919360263737')
+    phone = phone.replace(/^p:/i, '').replace(/['`\s\-\(\)]/g, '').trim();
+
     const email = emailCol !== -1 && row[emailCol] ? String(row[emailCol]).trim() : '';
-    const rawConsent = consentCol !== -1 && row[consentCol] ? String(row[consentCol]).toLowerCase().trim() : 'yes';
 
     if (!name || !phone) {
       continue;
     }
 
-    // Determine consent
-    let consentStatus = 'granted';
-    if (rawConsent === 'no' || rawConsent === 'false' || rawConsent === 'opted_out') {
-      consentStatus = 'revoked';
-    } else if (rawConsent === 'pending') {
-      consentStatus = 'pending';
-    }
-
-    // Build custom metadata from all other columns (city, package, campaign_name, etc.)
+    // Build custom metadata
     const customData = {
       SheetRow: r + 1,
     };
@@ -160,7 +150,7 @@ function processNewLeads() {
       phone,
       email: email || undefined,
       sourceSheet: sheetName,
-      consentStatus,
+      consentStatus: 'granted',
       customData,
     });
 
@@ -172,11 +162,11 @@ function processNewLeads() {
   }
 
   if (leadsToSend.length === 0) {
-    Logger.log('No new unprocessed leads.');
+    Logger.log('ℹ️ No new unprocessed leads found.');
     return;
   }
 
-  Logger.log(`Found ${leadsToSend.length} new leads. Posting to ${config.BACKEND_URL}...`);
+  Logger.log(`🚀 Dispatching ${leadsToSend.length} leads to WhatsApp backend...`);
 
   try {
     const payload = JSON.stringify({ leads: leadsToSend });
@@ -199,29 +189,28 @@ function processNewLeads() {
       for (const rowIdx of rowsToUpdate) {
         sheet.getRange(rowIdx, processedCol + 1).setValue(`PROCESSED: ${now}`);
       }
-      Logger.log(`✅ Successfully sent ${leadsToSend.length} leads. Rows marked PROCESSED.`);
+      Logger.log(`✅ Success: Sent ${leadsToSend.length} leads. Rows updated to PROCESSED.`);
     } else {
-      Logger.log(`❌ Backend returned error ${responseCode}: ${responseText}`);
+      Logger.log(`❌ Backend Error ${responseCode}: ${responseText}`);
       for (const rowIdx of rowsToUpdate) {
         sheet.getRange(rowIdx, processedCol + 1).setValue(`ERROR ${responseCode}: ${new Date().toLocaleTimeString()}`);
       }
     }
   } catch (error) {
-    Logger.log(`❌ Network exception: ${error.message}`);
+    Logger.log(`❌ Network Exception: ${error.message}`);
   }
 }
 
 /**
- * Manual test helper to send the currently selected row.
+ * Helper to process ONLY the currently selected row (useful for testing 1 lead first).
  */
-function sendSelectedRowTest() {
+function testCurrentRowOnly() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const row = sheet.getActiveRange().getRow();
   if (row <= 1) {
-    SpreadsheetApp.getUi().alert('Please select a data row (row 2 or higher).');
+    SpreadsheetApp.getUi().alert('Please click on any row between 2 and 42 first.');
     return;
   }
   processNewLeads();
-  SpreadsheetApp.getUi().alert('Ran lead check. Check logs or Automated_Status column.');
+  SpreadsheetApp.getUi().alert('Tested lead processing! Check the Automated_Status column.');
 }
-
