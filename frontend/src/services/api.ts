@@ -114,8 +114,10 @@ export const api = {
   uploadMedia: async (data: {
     title: string;
     description?: string;
-    fileName: string;
-    fileBase64: string;
+    videoUrl?: string;
+    fileName?: string;
+    fileBase64?: string;
+    fileSize?: number;
     mimeType?: string;
   }): Promise<{ asset: MediaAsset }> => {
     return request<{ asset: MediaAsset }>('/api/media/upload', {

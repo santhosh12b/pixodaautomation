@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { X, UploadCloud, Video, AlertCircle } from 'lucide-react';
+import { X, UploadCloud, Video, AlertCircle, Link as LinkIcon, Info } from 'lucide-react';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -15,8 +15,10 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
   onClose,
   onUploaded,
 }) => {
+  const [mode, setMode] = useState<'url' | 'file'>('url');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +32,15 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
       if (!title) {
         setTitle(selected.name.replace(/\.[^/.]+$/, ''));
       }
+
+      // Check file size limit (Vercel serverless limit is 4.5MB)
+      if (selected.size > 4.2 * 1024 * 1024) {
+        setError(
+          `File size is ${(selected.size / (1024 * 1024)).toFixed(1)} MB. Vercel Serverless has a strict 4.5 MB request limit. Please switch to "Video URL / Cloud Link" above to attach videos of any size (Google Drive, Cloudinary, S3, Dropbox).`
+        );
+      } else {
+        setError(null);
+      }
     }
   };
 
@@ -42,14 +53,46 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
       return;
     }
 
+    if (mode === 'url') {
+      if (!videoUrl.trim()) {
+        setError('Please enter a valid video link (e.g. Google Drive, Cloudinary, AWS S3, or direct mp4 URL).');
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        await api.uploadMedia({
+          title,
+          description,
+          videoUrl: videoUrl.trim(),
+          mimeType: 'video/mp4',
+        });
+
+        onUploaded();
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
+    // File upload mode
     if (!file) {
       setError('Please select a video file to upload.');
       return;
     }
 
+    if (file.size > 4.2 * 1024 * 1024) {
+      setError(
+        `File is ${(file.size / (1024 * 1024)).toFixed(1)} MB. Vercel Serverless restricts uploads to 4.5 MB. Please switch to "Video URL / Cloud Link" to add this video.`
+      );
+      return;
+    }
+
     setIsUploading(true);
     try {
-      // Read file buffer as base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
@@ -68,6 +111,7 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
         description,
         fileName: file.name,
         fileBase64,
+        fileSize: file.size,
         mimeType: file.type || 'video/mp4',
       });
 
@@ -86,8 +130,8 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Upload Promotional Video</h3>
-            <p className="text-xs text-slate-500">Video hosted on Vercel Blob & sent via WhatsApp</p>
+            <h3 className="text-base font-bold text-slate-900">Add Sample Video Asset</h3>
+            <p className="text-xs text-slate-500">Provide a cloud video link or upload small clip for WhatsApp</p>
           </div>
           <button
             type="button"
@@ -98,11 +142,39 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
           </button>
         </div>
 
+        {/* Mode Selector Tabs */}
+        <div className="px-6 pt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setMode('url'); setError(null); }}
+            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
+              mode === 'url'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <LinkIcon className="w-3.5 h-3.5" />
+            Video URL / Cloud Link (Any Size)
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('file'); setError(null); }}
+            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
+              mode === 'file'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            Direct File Upload (&lt; 4 MB)
+          </button>
+        </div>
+
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -110,7 +182,7 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
           <div>
             <Input
               label="Video Title"
-              placeholder="e.g. 60s Platform Demo"
+              placeholder="e.g. Athipoo Properties - Sample AI Video"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -120,53 +192,75 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
           <div>
             <Input
               label="Description (Optional)"
-              placeholder="e.g. Overview of features sent in Step 2"
+              placeholder="e.g. Sample real estate ad sent in Step 2"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
-          {/* File Picker Dropzone */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Video File (.mp4, .mov)</label>
-            <div className="border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl p-6 text-center transition-colors bg-slate-50/50">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleFileChange}
-                className="hidden"
-                id="video-file-input"
+          {mode === 'url' ? (
+            <div>
+              <Input
+                label="Direct Video URL / Cloud Link"
+                placeholder="https://drive.google.com/... or https://res.cloudinary.com/.../video.mp4"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                required
               />
-              <label htmlFor="video-file-input" className="cursor-pointer block">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-                  <UploadCloud className="w-5 h-5" />
-                </div>
-                {file ? (
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 block truncate">{file.name}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {(file.size / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                  </div>
-                ) : (
-                  <div>
-                    <span className="text-xs font-semibold text-emerald-600 hover:underline">
-                      Click to choose video file
-                    </span>
-                    <span className="block text-[11px] text-slate-400 mt-0.5">MP4 or WebM up to 50MB</span>
-                  </div>
-                )}
-              </label>
+              <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                Supports Google Drive, Cloudinary, AWS S3, Dropbox, or any direct MP4 link without file size limits.
+              </p>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Video File (.mp4, .mov)</label>
+              <div className="border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl p-5 text-center transition-colors bg-slate-50/50">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="video-file-input"
+                />
+                <label htmlFor="video-file-input" className="cursor-pointer block">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  {file ? (
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block truncate">{file.name}</span>
+                      <span className={`text-[11px] font-mono font-semibold ${
+                        file.size > 4.2 * 1024 * 1024 ? 'text-red-500' : 'text-slate-500'
+                      }`}>
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB {file.size > 4.2 * 1024 * 1024 ? '(Exceeds 4.5 MB Limit)' : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-xs font-semibold text-emerald-600 hover:underline">
+                        Click to choose video file
+                      </span>
+                      <span className="block text-[11px] text-slate-400 mt-0.5">Maximum file size: 4 MB</span>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <Button type="button" variant="outline" onClick={onClose} disabled={isUploading}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isUploading}>
-              Upload to Vercel Blob
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isUploading}
+              disabled={mode === 'file' && !!file && file.size > 4.2 * 1024 * 1024}
+            >
+              {mode === 'url' ? 'Save Video Link' : 'Upload Video File'}
             </Button>
           </div>
         </form>
@@ -174,4 +268,3 @@ export const VideoUploadModal: React.FC<VideoUploadModalProps> = ({
     </div>
   );
 };
-

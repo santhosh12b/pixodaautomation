@@ -36,6 +36,50 @@ export class MediaService {
     }
   }
 
+  async createFromUrl(params: {
+    title: string;
+    description?: string;
+    videoUrl: string;
+    fileSize?: number;
+    mimeType?: string;
+    thumbnailUrl?: string;
+  }): Promise<MediaAssetRecord> {
+    const now = new Date();
+    const id = uuidv4();
+    const record: MediaAssetRecord = {
+      id,
+      title: params.title,
+      description: params.description || null,
+      blobUrl: params.videoUrl,
+      fileSize: params.fileSize || 5000000,
+      mimeType: params.mimeType || 'video/mp4',
+      thumbnailUrl: params.thumbnailUrl || null,
+      createdAt: now,
+    };
+
+    if (this.isMockStore) {
+      this.mockAssets.set(id, record);
+      return record;
+    }
+
+    try {
+      const [inserted] = await db.insert(mediaAssets).values({
+        id: record.id,
+        title: record.title,
+        description: record.description,
+        blobUrl: record.blobUrl,
+        fileSize: record.fileSize,
+        mimeType: record.mimeType,
+        thumbnailUrl: record.thumbnailUrl,
+      }).returning();
+
+      return (inserted as unknown as MediaAssetRecord) || record;
+    } catch {
+      this.mockAssets.set(id, record);
+      return record;
+    }
+  }
+
   async uploadAndCreate(params: {
     title: string;
     description?: string;
