@@ -44,6 +44,18 @@ export class LeadService {
     if (rawDigits.length === 10 && /^[6-9]/.test(rawDigits)) {
       return `+91${rawDigits}`;
     }
+    // 12-digit starting with 91 (e.g. 919360263737)
+    if (rawDigits.length === 12 && rawDigits.startsWith('91')) {
+      return `+${rawDigits}`;
+    }
+    // 11-digit starting with 0 (e.g. 09360263737)
+    if (rawDigits.length === 11 && rawDigits.startsWith('0') && /^[6-9]/.test(rawDigits.slice(1))) {
+      return `+91${rawDigits.slice(1)}`;
+    }
+    // 11-digit starting with 9 followed by 10-digit Indian mobile (e.g. typo +9360263737)
+    if (rawDigits.length === 11 && rawDigits.startsWith('9') && /^[6-9]/.test(rawDigits.slice(1))) {
+      return `+91${rawDigits.slice(1)}`;
+    }
     const cleaned = phone.replace(/[^\d+]/g, '');
     if (cleaned.startsWith('+')) {
       return cleaned;

@@ -14,7 +14,22 @@ export const InboxPage: React.FC = () => {
     refetchInterval: 5000,
   });
 
-  const conversations = data?.conversations || [];
+  const rawConversations = data?.conversations || [];
+
+  // Deduplicate conversations by normalized phone number (guaranteeing 1 entry per contact)
+  const conversations = React.useMemo(() => {
+    const seen = new Set<string>();
+    const unique: typeof rawConversations = [];
+    for (const c of rawConversations) {
+      const cleanDigits = c.leadPhone.replace(/\D/g, '');
+      const key = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(c);
+      }
+    }
+    return unique;
+  }, [rawConversations]);
 
   // Default select first conversation if none selected
   useEffect(() => {

@@ -218,17 +218,38 @@ export class InboxService {
 
   async listConversations(): Promise<ConversationSummary[]> {
     const allLeads = await leadService.listLeads();
-    const conversations: ConversationSummary[] = [];
+    const phoneMap = new Map<string, { lead: any; allLeadIds: string[] }>();
 
     for (const lead of allLeads) {
-      const thread = await this.getThreadForLead(lead.id);
+      const normalized = leadService.normalizePhone(lead.phone);
+      if (!phoneMap.has(normalized)) {
+        phoneMap.set(normalized, { lead, allLeadIds: [lead.id] });
+      } else {
+        const existing = phoneMap.get(normalized)!;
+        existing.allLeadIds.push(lead.id);
+        if (lead.status === 'contacted' && existing.lead.status !== 'contacted') {
+          existing.lead = lead;
+        }
+      }
+    }
+
+    const conversations: ConversationSummary[] = [];
+
+    for (const [phone, { lead, allLeadIds }] of phoneMap.entries()) {
+      let thread: MessageRecord[] = [];
+      for (const id of allLeadIds) {
+        const subThread = await this.getThreadForLead(id);
+        thread = thread.concat(subThread);
+      }
+      thread.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
       const lastMessage = thread.length > 0 ? thread[thread.length - 1] : null;
       const unreadCount = thread.filter(m => m.direction === 'inbound' && m.deliveryStatus !== 'read').length;
 
       conversations.push({
         leadId: lead.id,
         leadName: lead.name,
-        leadPhone: lead.phone,
+        leadPhone: phone,
         lastMessage,
         unreadCount,
       });
@@ -236,8 +257,8 @@ export class InboxService {
 
     // Sort by most recent message or lead creation
     return conversations.sort((a, b) => {
-      const timeA = a.lastMessage?.timestamp.getTime() || 0;
-      const timeB = b.lastMessage?.timestamp.getTime() || 0;
+      const timeA = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
+      const timeB = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
       return timeB - timeA;
     });
   }
