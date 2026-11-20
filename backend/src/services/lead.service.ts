@@ -120,11 +120,26 @@ export class LeadService {
           customData: lead.customData,
         });
 
-        const videoAsset = campaign.videoAsset ? {
-          url: campaign.videoAsset.blobUrl,
-          caption: campaign.videoCaption || 'Pls find these sample we did for other brands',
-          delaySeconds: campaign.videoDelaySeconds,
-        } : undefined;
+        // Resolve sequence of video assets
+        const videoAssetsList: Array<{ url: string; caption?: string; delaySeconds?: number }> = [];
+        if (campaign.videoAssets && campaign.videoAssets.length > 0) {
+          for (let i = 0; i < campaign.videoAssets.length; i++) {
+            const va = campaign.videoAssets[i];
+            videoAssetsList.push({
+              url: va.blobUrl,
+              caption: i === 0 
+                ? (campaign.videoCaption || 'Pls find these sample we did for other brands')
+                : (va.title ? `${va.title} 🎬` : undefined),
+              delaySeconds: campaign.videoDelaySeconds,
+            });
+          }
+        } else if (campaign.videoAsset) {
+          videoAssetsList.push({
+            url: campaign.videoAsset.blobUrl,
+            caption: campaign.videoCaption || 'Pls find these sample we did for other brands',
+            delaySeconds: campaign.videoDelaySeconds,
+          });
+        }
 
         const documentAsset = campaign.documentAsset ? {
           url: campaign.documentAsset.blobUrl,
@@ -140,7 +155,8 @@ export class LeadService {
           payload: {
             phone: lead.phone,
             text: renderedText,
-            videoAsset,
+            videoAssets: videoAssetsList,
+            videoAsset: videoAssetsList[0] || undefined,
             documentAsset,
           },
         });
@@ -301,9 +317,30 @@ export class LeadService {
       customData: lead.customData,
     });
 
-    const videoAsset = campaign.videoAsset ? {
-      url: campaign.videoAsset.blobUrl,
-      delaySeconds: campaign.videoDelaySeconds,
+    const videoAssetsList: Array<{ url: string; caption?: string; delaySeconds?: number }> = [];
+    if (campaign.videoAssets && campaign.videoAssets.length > 0) {
+      for (let i = 0; i < campaign.videoAssets.length; i++) {
+        const va = campaign.videoAssets[i];
+        videoAssetsList.push({
+          url: va.blobUrl,
+          caption: i === 0 
+            ? (campaign.videoCaption || 'Pls find these sample we did for other brands')
+            : (va.title ? `${va.title} 🎬` : undefined),
+          delaySeconds: campaign.videoDelaySeconds,
+        });
+      }
+    } else if (campaign.videoAsset) {
+      videoAssetsList.push({
+        url: campaign.videoAsset.blobUrl,
+        caption: campaign.videoCaption || 'Pls find these sample we did for other brands',
+        delaySeconds: campaign.videoDelaySeconds,
+      });
+    }
+
+    const documentAsset = campaign.documentAsset ? {
+      url: campaign.documentAsset.blobUrl,
+      caption: campaign.documentCaption || 'Please refer to the PDF above for video types and pricing packages 👆',
+      delaySeconds: campaign.documentDelaySeconds,
     } : undefined;
 
     // Retry job with new timestamped idempotency key
@@ -315,7 +352,9 @@ export class LeadService {
       payload: {
         phone: lead.phone,
         text: renderedText,
-        videoAsset,
+        videoAssets: videoAssetsList,
+        videoAsset: videoAssetsList[0] || undefined,
+        documentAsset,
       },
     });
 

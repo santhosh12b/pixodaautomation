@@ -22,6 +22,7 @@ export interface Campaign {
   sheetTab: string | null;
   messageTemplate: string;
   videoAssetId: string | null;
+  videoAssetIds?: string[] | null;
   videoCaption: string | null;
   videoDelaySeconds: number;
   documentAssetId: string | null;
@@ -29,12 +30,25 @@ export interface Campaign {
   documentDelaySeconds: number;
   cooldownHours: number;
   videoAsset?: {
+    id?: string;
     blobUrl: string;
     title: string;
+    mimeType?: string;
+    fileSize?: number;
   } | null;
-  documentAsset?: {
+  videoAssets?: Array<{
+    id: string;
     blobUrl: string;
     title: string;
+    mimeType: string;
+    fileSize: number;
+  }> | null;
+  documentAsset?: {
+    id?: string;
+    blobUrl: string;
+    title: string;
+    mimeType?: string;
+    fileSize?: number;
   } | null;
   createdAt: string;
   updatedAt: string;

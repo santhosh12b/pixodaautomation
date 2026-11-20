@@ -106,5 +106,72 @@ describe('Task 4: Persistent Queue Engine', () => {
     stats = await failingQueue.getStats();
     expect(stats.deadLetter).toBe(1);
   });
+
+  it('should sequentially chain 4 sample videos followed by PDF document', async () => {
+    // Enqueue initial send_text job with 4 sample videos and 1 document asset
+    await queueService.enqueue({
+      idempotencyKey: 'lead_multi_text_1',
+      type: 'send_text',
+      leadId: 'lead-multi-uuid',
+      campaignId: 'camp-multi-uuid',
+      payload: {
+        phone: '+919360263737',
+        text: 'Hi Santhosh\nThank you for enquiring with us regarding AI videos',
+        videoAssets: [
+          { url: 'https://blob/sample-video-1.mp4', caption: 'Pls find these sample we did for other brands', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-2.mp4', caption: 'Sample 2: AI Brand Commercial 🎬', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-3.mp4', caption: 'Sample 3: AI Property Tour 🎬', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-4.mp4', caption: 'Sample 4: AI Social Media Feature 🎬', delaySeconds: 0 },
+        ],
+        documentAsset: {
+          url: 'https://blob/the-editing-crew-packages.pdf',
+          caption: 'Please refer to the PDF above for video types and pricing packages 👆',
+          delaySeconds: 0,
+        },
+      },
+    });
+
+    // Step 1: Text message executes -> chains Video 1
+    const resText = await queueService.processBatch({ batchSize: 1 });
+    expect(resText.successCount).toBe(1);
+    let stats = await queueService.getStats();
+    expect(stats.completed).toBe(1);
+    expect(stats.pending).toBe(1);
+
+    // Step 2: Video 1 executes -> chains Video 2
+    const resV1 = await queueService.processBatch({ batchSize: 1 });
+    expect(resV1.successCount).toBe(1);
+    stats = await queueService.getStats();
+    expect(stats.completed).toBe(2);
+    expect(stats.pending).toBe(1);
+
+    // Step 3: Video 2 executes -> chains Video 3
+    const resV2 = await queueService.processBatch({ batchSize: 1 });
+    expect(resV2.successCount).toBe(1);
+    stats = await queueService.getStats();
+    expect(stats.completed).toBe(3);
+    expect(stats.pending).toBe(1);
+
+    // Step 4: Video 3 executes -> chains Video 4
+    const resV3 = await queueService.processBatch({ batchSize: 1 });
+    expect(resV3.successCount).toBe(1);
+    stats = await queueService.getStats();
+    expect(stats.completed).toBe(4);
+    expect(stats.pending).toBe(1);
+
+    // Step 5: Video 4 executes -> chains PDF Document
+    const resV4 = await queueService.processBatch({ batchSize: 1 });
+    expect(resV4.successCount).toBe(1);
+    stats = await queueService.getStats();
+    expect(stats.completed).toBe(5);
+    expect(stats.pending).toBe(1);
+
+    // Step 6: PDF Document executes -> sequence complete!
+    const resDoc = await queueService.processBatch({ batchSize: 1 });
+    expect(resDoc.successCount).toBe(1);
+    stats = await queueService.getStats();
+    expect(stats.completed).toBe(6);
+    expect(stats.pending).toBe(0);
+  });
 });
 

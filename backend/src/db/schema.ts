@@ -31,6 +31,7 @@ export const campaigns = pgTable('campaigns', {
   sheetTab: text('sheet_tab'),
   messageTemplate: text('message_template').notNull(),
   videoAssetId: uuid('video_asset_id'),
+  videoAssetIds: jsonb('video_asset_ids').$type<string[]>().default([]),
   videoCaption: text('video_caption'),
   videoDelaySeconds: integer('video_delay_seconds').default(5).notNull(),
   documentAssetId: uuid('document_asset_id'),

@@ -17,7 +17,8 @@ import {
   Pause, 
   Trash2, 
   Edit, 
-  Sparkles 
+  Sparkles,
+  FileText
 } from 'lucide-react';
 
 export const CampaignsPage: React.FC = () => {
@@ -200,23 +201,56 @@ export const CampaignsPage: React.FC = () => {
                   {campaign.messageTemplate}
                 </div>
 
+                {/* Sequence Flow Visualizer */}
+                <div className="p-2.5 rounded-xl bg-slate-900 text-white flex items-center justify-between gap-2 text-[10px] overflow-x-auto">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-900 font-bold flex items-center justify-center text-[9px]">1</span>
+                    <span className="text-emerald-300 font-medium">Text Greeting</span>
+                  </div>
+                  <span className="text-slate-500 font-mono">→</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-900 font-bold flex items-center justify-center text-[9px]">2</span>
+                    <span className="text-emerald-300 font-medium">
+                      {(campaign.videoAssetIds?.length || (campaign.videoAssetId ? 1 : 0)) > 1
+                        ? `${campaign.videoAssetIds?.length} Sample Videos`
+                        : (campaign.videoAssetId ? 'Sample Video' : 'No Video')}
+                    </span>
+                  </div>
+                  <span className="text-slate-500 font-mono">→</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-[9px]">3</span>
+                    <span className="text-blue-300 font-medium">
+                      {campaign.documentAssetId ? 'PDF Brochure' : 'No PDF'}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Metadata Pills */}
-                <div className="flex flex-wrap items-center gap-3 text-slate-500 pt-1">
-                  <span className="flex items-center gap-1 font-medium">
+                <div className="flex flex-wrap items-center gap-2 text-slate-500 pt-1">
+                  <span className="flex items-center gap-1 font-medium bg-slate-100 px-2 py-0.5 rounded text-[11px]">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     Sheet: <strong className="text-slate-800">{campaign.sheetUrl || 'Any'}</strong>
                   </span>
 
-                  {campaign.videoAssetId ? (
-                    <span className="flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  {(campaign.videoAssetIds?.length || (campaign.videoAssetId ? 1 : 0)) > 0 ? (
+                    <span className="flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
                       <Video className="w-3.5 h-3.5" />
-                      Video Attached (+{campaign.videoDelaySeconds}s delay)
+                      {campaign.videoAssetIds && campaign.videoAssetIds.length > 1
+                        ? `${campaign.videoAssetIds.length} Videos (+${campaign.videoDelaySeconds}s delay)`
+                        : `1 Video (+${campaign.videoDelaySeconds}s delay)`}
                     </span>
                   ) : (
-                    <span className="text-slate-400">Text Only</span>
+                    <span className="text-slate-400 text-[11px]">Text Only</span>
                   )}
 
-                  <span className="flex items-center gap-1 text-slate-400">
+                  {campaign.documentAssetId && (
+                    <span className="flex items-center gap-1 font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">
+                      <FileText className="w-3.5 h-3.5" />
+                      PDF Brochure (+{campaign.documentDelaySeconds}s delay)
+                    </span>
+                  )}
+
+                  <span className="flex items-center gap-1 text-slate-400 text-[11px]">
                     <Clock className="w-3.5 h-3.5" />
                     {campaign.cooldownHours}h Cooldown
                   </span>

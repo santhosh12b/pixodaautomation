@@ -247,22 +247,36 @@ export class QueueService {
         }
       }
 
-      // Check if video or document chaining is required
-      const videoAsset = job.payload.videoAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+      // Check if video sequence or document chaining is required
+      const rawVideoAssets = job.payload.videoAssets as Array<{ url: string; caption?: string; delaySeconds?: number }> | undefined;
+      const rawVideoAsset = job.payload.videoAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+
+      const videoAssets: Array<{ url: string; caption?: string; delaySeconds?: number }> = 
+        (Array.isArray(rawVideoAssets) && rawVideoAssets.length > 0)
+          ? rawVideoAssets
+          : (rawVideoAsset && rawVideoAsset.url)
+            ? [{ url: rawVideoAsset.url, caption: rawVideoAsset.caption, delaySeconds: rawVideoAsset.delaySeconds }]
+            : [];
+
       const documentAsset = job.payload.documentAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
 
-      if (videoAsset && videoAsset.url) {
-        const delayMs = (videoAsset.delaySeconds ?? 5) * 1000;
+      if (videoAssets.length > 0) {
+        const firstVideo = videoAssets[0];
+        const remainingVideos = videoAssets.slice(1);
+        const delayMs = (firstVideo.delaySeconds ?? 5) * 1000;
         const videoRunAt = new Date(Date.now() + delayMs);
+
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_video_${job.campaignId}`,
+          idempotencyKey: `lead_${job.leadId}_video_0_${job.campaignId}`,
           type: 'send_video',
           leadId: job.leadId || undefined,
           campaignId: job.campaignId || undefined,
           payload: {
             phone,
-            videoUrl: videoAsset.url,
-            caption: videoAsset.caption || String(job.payload.videoCaption || 'Pls find these sample we did for other brands'),
+            videoUrl: firstVideo.url,
+            caption: firstVideo.caption || String(job.payload.videoCaption || 'Pls find these sample we did for other brands'),
+            videoIndex: 0,
+            remainingVideos,
             documentAsset,
           },
           runAt: videoRunAt,
@@ -311,9 +325,38 @@ export class QueueService {
         }
       }
 
-      // Chain PDF document step after video if configured
+      // Check if there are remaining videos in sequence
+      const remainingVideos = (Array.isArray(job.payload.remainingVideos)
+        ? job.payload.remainingVideos
+        : []) as Array<{ url: string; caption?: string; delaySeconds?: number }>;
+
       const documentAsset = job.payload.documentAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
-      if (documentAsset && documentAsset.url) {
+
+      if (remainingVideos.length > 0) {
+        const nextVideo = remainingVideos[0];
+        const nextRemaining = remainingVideos.slice(1);
+        const currentIndex = Number(job.payload.videoIndex ?? 0);
+        const nextIndex = currentIndex + 1;
+        const delayMs = (nextVideo.delaySeconds ?? 5) * 1000;
+        const nextVideoRunAt = new Date(Date.now() + delayMs);
+
+        await this.enqueue({
+          idempotencyKey: `lead_${job.leadId}_video_${nextIndex}_${job.campaignId}`,
+          type: 'send_video',
+          leadId: job.leadId || undefined,
+          campaignId: job.campaignId || undefined,
+          payload: {
+            phone,
+            videoUrl: nextVideo.url,
+            caption: nextVideo.caption || '',
+            videoIndex: nextIndex,
+            remainingVideos: nextRemaining,
+            documentAsset,
+          },
+          runAt: nextVideoRunAt,
+        });
+      } else if (documentAsset && documentAsset.url) {
+        // All sample videos have completed! Chain the PDF document step!
         const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
         const docRunAt = new Date(Date.now() + delayMs);
         await this.enqueue({

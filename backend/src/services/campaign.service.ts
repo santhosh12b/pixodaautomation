@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { campaigns, mediaAssets } from '../db/schema.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface CampaignRecord {
@@ -12,6 +12,7 @@ export interface CampaignRecord {
   sheetTab: string | null;
   messageTemplate: string;
   videoAssetId: string | null;
+  videoAssetIds?: string[] | null;
   videoCaption: string | null;
   videoDelaySeconds: number;
   documentAssetId: string | null;
@@ -19,12 +20,25 @@ export interface CampaignRecord {
   documentDelaySeconds: number;
   cooldownHours: number;
   videoAsset?: {
+    id?: string;
     blobUrl: string;
     title: string;
+    mimeType?: string;
+    fileSize?: number;
   } | null;
-  documentAsset?: {
+  videoAssets?: Array<{
+    id: string;
     blobUrl: string;
     title: string;
+    mimeType: string;
+    fileSize: number;
+  }> | null;
+  documentAsset?: {
+    id?: string;
+    blobUrl: string;
+    title: string;
+    mimeType?: string;
+    fileSize?: number;
   } | null;
   createdAt: Date;
   updatedAt: Date;
@@ -33,17 +47,77 @@ export interface CampaignRecord {
 export class CampaignService {
   private isMockStore: boolean;
   private mockCampaigns: Map<string, CampaignRecord> = new Map();
+  private schemaEnsured = false;
 
   constructor(options?: { mockStore?: boolean }) {
     this.isMockStore = options?.mockStore ?? (process.env.NODE_ENV === 'test');
   }
 
+  async ensureSchema(): Promise<void> {
+    if (this.schemaEnsured || this.isMockStore) return;
+    try {
+      await db.execute(sql`
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS video_asset_ids jsonb DEFAULT '[]'::jsonb;
+      `);
+      this.schemaEnsured = true;
+    } catch (err) {
+      console.warn('ensureSchema warning:', err);
+    }
+  }
+
+  private async populateMediaForCampaign(camp: any): Promise<CampaignRecord> {
+    if (!camp) return camp;
+    const record = { ...camp };
+
+    const assetIds = (Array.isArray(record.videoAssetIds) && record.videoAssetIds.length > 0)
+      ? record.videoAssetIds
+      : record.videoAssetId
+        ? [record.videoAssetId]
+        : [];
+
+    if (assetIds.length > 0) {
+      if (!this.isMockStore) {
+        try {
+          const assets = await db.query.mediaAssets.findMany({
+            where: inArray(mediaAssets.id, assetIds),
+          });
+          const assetMap = new Map(assets.map(a => [a.id, a]));
+          record.videoAssets = assetIds
+            .map((id: string) => assetMap.get(id))
+            .filter(Boolean);
+          if (!record.videoAsset && record.videoAssets.length > 0) {
+            record.videoAsset = record.videoAssets[0];
+          }
+        } catch (err) {
+          console.warn('Failed to load media assets for campaign:', err);
+          record.videoAssets = record.videoAsset ? [record.videoAsset] : [];
+        }
+      } else {
+        record.videoAssets = assetIds.map((id: string, idx: number) => ({
+          id,
+          title: `Sample Video ${idx + 1}`,
+          blobUrl: `https://pixodaautomation-frontend.vercel.app/sample-video-${idx + 1}.mp4`,
+          fileSize: 5000000,
+          mimeType: 'video/mp4',
+        }));
+        if (!record.videoAsset && record.videoAssets.length > 0) {
+          record.videoAsset = record.videoAssets[0];
+        }
+      }
+    } else {
+      record.videoAssets = record.videoAsset ? [record.videoAsset] : [];
+    }
+
+    return record as CampaignRecord;
+  }
+
   async findMatchingCampaign(sourceSheet?: string): Promise<CampaignRecord | null> {
+    await this.ensureSchema();
     if (this.isMockStore) {
       for (const camp of this.mockCampaigns.values()) {
         if (camp.status === 'active') {
           if (!sourceSheet || !camp.sheetUrl || camp.sheetUrl === sourceSheet || camp.name.includes(sourceSheet)) {
-            return camp;
+            return this.populateMediaForCampaign(camp);
           }
         }
       }
@@ -67,10 +141,10 @@ export class CampaignService {
           c.sheetUrl === sourceSheet || 
           c.name.toLowerCase() === sourceSheet.toLowerCase()
         );
-        if (matched) return matched as unknown as CampaignRecord;
+        if (matched) return this.populateMediaForCampaign(matched);
       }
 
-      return activeCampaigns[0] as unknown as CampaignRecord;
+      return this.populateMediaForCampaign(activeCampaigns[0]);
     } catch {
       return this.findMatchingCampaignMock(sourceSheet);
     }
@@ -105,8 +179,9 @@ export class CampaignService {
   }
 
   async listCampaigns(): Promise<CampaignRecord[]> {
+    await this.ensureSchema();
     if (this.isMockStore) {
-      return Array.from(this.mockCampaigns.values());
+      return Promise.all(Array.from(this.mockCampaigns.values()).map(c => this.populateMediaForCampaign(c)));
     }
 
     try {
@@ -117,15 +192,17 @@ export class CampaignService {
         },
         orderBy: desc(campaigns.createdAt),
       });
-      return list as unknown as CampaignRecord[];
+      return Promise.all(list.map(c => this.populateMediaForCampaign(c)));
     } catch {
-      return Array.from(this.mockCampaigns.values());
+      return Promise.all(Array.from(this.mockCampaigns.values()).map(c => this.populateMediaForCampaign(c)));
     }
   }
 
   async getCampaignById(id: string): Promise<CampaignRecord | null> {
+    await this.ensureSchema();
     if (this.isMockStore) {
-      return this.mockCampaigns.get(id) || null;
+      const camp = this.mockCampaigns.get(id);
+      return camp ? this.populateMediaForCampaign(camp) : null;
     }
 
     try {
@@ -136,9 +213,10 @@ export class CampaignService {
           documentAsset: true,
         },
       });
-      return (campaign as unknown as CampaignRecord) || null;
+      return campaign ? this.populateMediaForCampaign(campaign) : null;
     } catch {
-      return this.mockCampaigns.get(id) || null;
+      const camp = this.mockCampaigns.get(id);
+      return camp ? this.populateMediaForCampaign(camp) : null;
     }
   }
 
@@ -150,6 +228,7 @@ export class CampaignService {
     sheetTab?: string;
     messageTemplate: string;
     videoAssetId?: string;
+    videoAssetIds?: string[];
     videoCaption?: string;
     videoDelaySeconds?: number;
     documentAssetId?: string;
@@ -157,8 +236,15 @@ export class CampaignService {
     documentDelaySeconds?: number;
     cooldownHours?: number;
   }): Promise<CampaignRecord> {
+    await this.ensureSchema();
     const id = uuidv4();
     const now = new Date();
+
+    const videoAssetIds = Array.isArray(data.videoAssetIds)
+      ? data.videoAssetIds
+      : (data.videoAssetId ? [data.videoAssetId] : []);
+    const videoAssetId = videoAssetIds.length > 0 ? videoAssetIds[0] : (data.videoAssetId || null);
+
     const record: CampaignRecord = {
       id,
       name: data.name,
@@ -167,7 +253,8 @@ export class CampaignService {
       sheetUrl: data.sheetUrl || null,
       sheetTab: data.sheetTab || 'Sheet1',
       messageTemplate: data.messageTemplate,
-      videoAssetId: data.videoAssetId || null,
+      videoAssetId,
+      videoAssetIds,
       videoCaption: data.videoCaption || null,
       videoDelaySeconds: data.videoDelaySeconds ?? 5,
       documentAssetId: data.documentAssetId || null,
@@ -175,6 +262,7 @@ export class CampaignService {
       documentDelaySeconds: data.documentDelaySeconds ?? 5,
       cooldownHours: data.cooldownHours ?? 24,
       videoAsset: null,
+      videoAssets: [],
       documentAsset: null,
       createdAt: now,
       updatedAt: now,
@@ -182,7 +270,7 @@ export class CampaignService {
 
     if (this.isMockStore) {
       this.mockCampaigns.set(id, record);
-      return record;
+      return this.populateMediaForCampaign(record);
     }
 
     try {
@@ -195,6 +283,7 @@ export class CampaignService {
         sheetTab: record.sheetTab,
         messageTemplate: record.messageTemplate,
         videoAssetId: record.videoAssetId,
+        videoAssetIds: record.videoAssetIds,
         videoCaption: record.videoCaption,
         videoDelaySeconds: record.videoDelaySeconds,
         documentAssetId: record.documentAssetId,
@@ -203,20 +292,27 @@ export class CampaignService {
         cooldownHours: record.cooldownHours,
       }).returning();
 
-      return (inserted as unknown as CampaignRecord) || record;
+      return this.populateMediaForCampaign(inserted || record);
     } catch {
       this.mockCampaigns.set(id, record);
-      return record;
+      return this.populateMediaForCampaign(record);
     }
   }
 
-  async updateCampaign(id: string, updates: Partial<CampaignRecord>): Promise<CampaignRecord | null> {
+  async updateCampaign(id: string, updates: Partial<CampaignRecord> & { videoAssetIds?: string[] }): Promise<CampaignRecord | null> {
+    await this.ensureSchema();
+    if (updates.videoAssetIds && Array.isArray(updates.videoAssetIds)) {
+      if (updates.videoAssetIds.length > 0 && !updates.videoAssetId) {
+        updates.videoAssetId = updates.videoAssetIds[0];
+      }
+    }
+
     if (this.isMockStore) {
       const existing = this.mockCampaigns.get(id);
       if (!existing) return null;
       const updated = { ...existing, ...updates, updatedAt: new Date() };
       this.mockCampaigns.set(id, updated);
-      return updated;
+      return this.populateMediaForCampaign(updated);
     }
 
     try {
@@ -226,13 +322,13 @@ export class CampaignService {
         .where(eq(campaigns.id, id))
         .returning();
 
-      return (updated as unknown as CampaignRecord) || null;
+      return this.populateMediaForCampaign(updated || null);
     } catch {
       const existing = this.mockCampaigns.get(id);
       if (!existing) return null;
       const updated = { ...existing, ...updates, updatedAt: new Date() };
       this.mockCampaigns.set(id, updated);
-      return updated;
+      return this.populateMediaForCampaign(updated);
     }
   }
 
@@ -250,6 +346,11 @@ export class CampaignService {
   }
 
   createCampaignMock(data: Partial<CampaignRecord> & { name: string; messageTemplate: string; sourceSheet?: string }): CampaignRecord {
+    const videoAssetIds = Array.isArray(data.videoAssetIds)
+      ? data.videoAssetIds
+      : (data.videoAssetId ? [data.videoAssetId] : []);
+    const videoAssetId = videoAssetIds.length > 0 ? videoAssetIds[0] : (data.videoAssetId || null);
+
     const record: CampaignRecord = {
       id: data.id || uuidv4(),
       name: data.name,
@@ -258,7 +359,8 @@ export class CampaignService {
       sheetUrl: data.sheetUrl || data.sourceSheet || null,
       sheetTab: data.sheetTab || 'Sheet1',
       messageTemplate: data.messageTemplate,
-      videoAssetId: data.videoAssetId || null,
+      videoAssetId,
+      videoAssetIds,
       videoCaption: data.videoCaption || null,
       videoDelaySeconds: data.videoDelaySeconds ?? 5,
       documentAssetId: data.documentAssetId || null,
@@ -266,6 +368,7 @@ export class CampaignService {
       documentDelaySeconds: data.documentDelaySeconds ?? 5,
       cooldownHours: data.cooldownHours ?? 24,
       videoAsset: data.videoAsset || null,
+      videoAssets: data.videoAssets || [],
       documentAsset: data.documentAsset || null,
       createdAt: new Date(),
       updatedAt: new Date(),

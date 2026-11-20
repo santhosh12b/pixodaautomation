@@ -10,6 +10,7 @@ const createCampaignSchema = z.object({
   sheetTab: z.string().optional(),
   messageTemplate: z.string().min(1, 'Message template is required'),
   videoAssetId: z.string().uuid().optional().or(z.literal('')),
+  videoAssetIds: z.array(z.string().uuid()).optional(),
   videoCaption: z.string().optional(),
   videoDelaySeconds: z.number().int().min(0).max(300).optional(),
   documentAssetId: z.string().uuid().optional().or(z.literal('')),
@@ -51,6 +52,7 @@ export async function createCampaignHandler(req: Request, res: Response) {
   const campaign = await campaignService.createCampaign({
     ...parsed,
     videoAssetId: parsed.videoAssetId || undefined,
+    videoAssetIds: parsed.videoAssetIds || undefined,
     documentAssetId: parsed.documentAssetId || undefined,
   });
 
@@ -66,6 +68,8 @@ export async function updateCampaignHandler(req: Request, res: Response) {
   const updated = await campaignService.updateCampaign(id, {
     ...parsed,
     videoAssetId: parsed.videoAssetId || undefined,
+    videoAssetIds: parsed.videoAssetIds || undefined,
+    documentAssetId: parsed.documentAssetId || undefined,
   });
 
   if (!updated) {

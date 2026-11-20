@@ -5,7 +5,7 @@ import { Campaign, MediaAsset } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { TemplateEditor } from './TemplateEditor';
-import { X, Video, ShieldAlert, Sparkles, FileText } from 'lucide-react';
+import { X, Video, ShieldAlert, Sparkles, FileText, ArrowUp, ArrowDown, CheckSquare, Square, ListOrdered } from 'lucide-react';
 
 interface CampaignModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetTab, setSheetTab] = useState('Sheet1');
   const [messageTemplate, setMessageTemplate] = useState('Hi {{name}},\nThank you for enquiring with us regarding AI videos');
-  const [videoAssetId, setVideoAssetId] = useState('');
+  const [videoAssetIds, setVideoAssetIds] = useState<string[]>([]);
   const [videoCaption, setVideoCaption] = useState('Pls find these sample we did for other brands');
   const [videoDelaySeconds, setVideoDelaySeconds] = useState(5);
   const [documentAssetId, setDocumentAssetId] = useState('');
@@ -36,7 +36,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch available videos
+  // Fetch available videos & documents
   const { data: mediaData } = useQuery({
     queryKey: ['media-assets-modal'],
     queryFn: api.getMedia,
@@ -44,6 +44,8 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
   });
 
   const mediaAssets = mediaData?.assets || [];
+  const videoAssets = mediaAssets.filter(a => a.mimeType.startsWith('video/'));
+  const documentAssets = mediaAssets.filter(a => a.mimeType.includes('pdf') || !a.mimeType.startsWith('video/'));
 
   useEffect(() => {
     if (campaignToEdit) {
@@ -52,7 +54,12 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       setSheetUrl(campaignToEdit.sheetUrl || '');
       setSheetTab(campaignToEdit.sheetTab || 'Sheet1');
       setMessageTemplate(campaignToEdit.messageTemplate);
-      setVideoAssetId(campaignToEdit.videoAssetId || '');
+      
+      const existingIds = (campaignToEdit.videoAssetIds && campaignToEdit.videoAssetIds.length > 0)
+        ? campaignToEdit.videoAssetIds
+        : (campaignToEdit.videoAssetId ? [campaignToEdit.videoAssetId] : []);
+      setVideoAssetIds(existingIds);
+
       setVideoCaption(campaignToEdit.videoCaption || 'Pls find these sample we did for other brands');
       setVideoDelaySeconds(campaignToEdit.videoDelaySeconds ?? 5);
       setDocumentAssetId(campaignToEdit.documentAssetId || '');
@@ -61,24 +68,64 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
       setCooldownHours(campaignToEdit.cooldownHours ?? 24);
       setStatus(campaignToEdit.status as 'active' | 'draft' | 'paused');
     } else {
-      setName('');
-      setDescription('');
-      setSheetUrl('');
+      setName('Google Sheet Inbound VIPs');
+      setDescription('Automates 3-step sequence: Greeting text -> 4 Sample Videos -> Pricing PDF');
+      setSheetUrl('Inbound Leads 2026');
       setSheetTab('Sheet1');
-      setMessageTemplate('Hi {{name}},\nThank you for enquiring with us regarding AI videos');
-      setVideoAssetId('');
+      setMessageTemplate('Hi {{name}}\nThank you for enquiring with us regarding AI videos');
+      
+      // Default to all 4 sample videos
+      const sampleVideoIds = videoAssets
+        .filter(a => a.title.toLowerCase().includes('sample'))
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map(a => a.id);
+      setVideoAssetIds(sampleVideoIds.length > 0 ? sampleVideoIds : videoAssets.slice(0, 4).map(a => a.id));
+
       setVideoCaption('Pls find these sample we did for other brands');
       setVideoDelaySeconds(5);
-      setDocumentAssetId('');
+      
+      // Default to PDF brochure
+      const pdfAsset = mediaAssets.find(a => a.mimeType.includes('pdf') || a.title.toLowerCase().includes('pdf') || a.title.toLowerCase().includes('pricing'));
+      setDocumentAssetId(pdfAsset?.id || '');
       setDocumentCaption('Please refer to the PDF above for video types and pricing packages 👆');
       setDocumentDelaySeconds(5);
       setCooldownHours(24);
       setStatus('active');
     }
     setError(null);
-  }, [campaignToEdit, isOpen]);
+  }, [campaignToEdit, isOpen, mediaAssets.length]);
 
   if (!isOpen) return null;
+
+  const toggleVideoSelection = (id: string) => {
+    setVideoAssetIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(v => v !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const moveVideo = (index: number, direction: 'up' | 'down') => {
+    setVideoAssetIds(prev => {
+      const next = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= next.length) return prev;
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
+      return next;
+    });
+  };
+
+  const selectAllSampleVideos = () => {
+    const samples = videoAssets
+      .filter(a => a.title.toLowerCase().includes('sample'))
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map(a => a.id);
+    setVideoAssetIds(samples.length > 0 ? samples : videoAssets.map(a => a.id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,38 +143,27 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        name,
+        description,
+        sheetUrl,
+        sheetTab,
+        messageTemplate,
+        videoAssetId: videoAssetIds[0] || undefined,
+        videoAssetIds: videoAssetIds.length > 0 ? videoAssetIds : undefined,
+        videoCaption: videoCaption || undefined,
+        videoDelaySeconds,
+        documentAssetId: documentAssetId || undefined,
+        documentCaption: documentCaption || undefined,
+        documentDelaySeconds,
+        cooldownHours,
+        status,
+      };
+
       if (campaignToEdit) {
-        await api.updateCampaign(campaignToEdit.id, {
-          name,
-          description,
-          sheetUrl,
-          sheetTab,
-          messageTemplate,
-          videoAssetId: videoAssetId || undefined,
-          videoCaption: videoCaption || undefined,
-          videoDelaySeconds,
-          documentAssetId: documentAssetId || undefined,
-          documentCaption: documentCaption || undefined,
-          documentDelaySeconds,
-          cooldownHours,
-          status,
-        });
+        await api.updateCampaign(campaignToEdit.id, payload);
       } else {
-        await api.createCampaign({
-          name,
-          description,
-          sheetUrl,
-          sheetTab,
-          messageTemplate,
-          videoAssetId: videoAssetId || undefined,
-          videoCaption: videoCaption || undefined,
-          videoDelaySeconds,
-          documentAssetId: documentAssetId || undefined,
-          documentCaption: documentCaption || undefined,
-          documentDelaySeconds,
-          cooldownHours,
-          status,
-        });
+        await api.createCampaign(payload);
       }
 
       onSaved();
@@ -222,56 +258,142 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
           {/* Template Editor */}
           <TemplateEditor value={messageTemplate} onChange={setMessageTemplate} />
 
-          {/* Step 2: Promotional Video Selection */}
+          {/* Step 2: Promotional Video Sequence */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Video className="w-4 h-4 text-emerald-600" />
-                Step 2: Sample Video Follow-up
+                Step 2: Sample Videos Sequence Follow-up
               </span>
-              <span className="text-[11px] text-slate-500">Sent automatically after text</span>
+              <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                {videoAssetIds.length} {videoAssetIds.length === 1 ? 'Video' : 'Videos'} in Sequence
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Select Video Asset</label>
-                <select
-                  value={videoAssetId}
-                  onChange={(e) => setVideoAssetId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            <p className="text-[11px] text-slate-500">
+              Videos will be delivered one-by-one via WhatsApp with automatic delay between each video.
+            </p>
+
+            {/* Quick Actions */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-semibold text-slate-700">Select Videos & Order</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectAllSampleVideos}
+                  className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
                 >
-                  <option value="">No Promotional Video (Skip Step)</option>
-                  {mediaAssets.filter(a => a.mimeType.startsWith('video/')).map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.title} ({(asset.fileSize / (1024 * 1024)).toFixed(1)} MB)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Delay After Text (Seconds)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={300}
-                  value={videoDelaySeconds}
-                  onChange={(e) => setVideoDelaySeconds(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                  Select All 4 Samples
+                </button>
+                <span className="text-slate-300">•</span>
+                <button
+                  type="button"
+                  onClick={() => setVideoAssetIds([])}
+                  className="text-[11px] text-slate-400 hover:text-slate-600"
+                >
+                  Clear
+                </button>
               </div>
             </div>
 
-            {videoAssetId && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Video Message Caption</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pls find these sample we did for other brands"
-                  value={videoCaption}
-                  onChange={(e) => setVideoCaption(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+            {/* Video List */}
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {videoAssets.length === 0 ? (
+                <div className="text-center py-4 text-xs text-slate-400">No promotional videos in library.</div>
+              ) : (
+                videoAssets.map((asset) => {
+                  const selectedIndex = videoAssetIds.indexOf(asset.id);
+                  const isSelected = selectedIndex !== -1;
+
+                  return (
+                    <div
+                      key={asset.id}
+                      onClick={() => toggleVideoSelection(asset.id)}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-50/60 border-emerald-300 text-slate-900'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                        )}
+
+                        {isSelected && (
+                          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                            #{selectedIndex + 1}
+                          </span>
+                        )}
+
+                        <div className="min-w-0 truncate">
+                          <p className="font-semibold text-slate-800 truncate">{asset.title}</p>
+                          <p className="text-[10px] text-slate-400">{(asset.fileSize / (1024 * 1024)).toFixed(1)} MB • video/mp4</p>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            disabled={selectedIndex === 0}
+                            onClick={() => moveVideo(selectedIndex, 'up')}
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-emerald-100/50"
+                            title="Move earlier in sequence"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={selectedIndex === videoAssetIds.length - 1}
+                            onClick={() => moveVideo(selectedIndex, 'down')}
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-emerald-100/50"
+                            title="Move later in sequence"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Delay & Caption */}
+            {videoAssetIds.length > 0 && (
+              <div className="space-y-3 pt-2 border-t border-slate-200/60">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Delay Between Videos (Seconds)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={300}
+                    value={videoDelaySeconds}
+                    onChange={(e) => setVideoDelaySeconds(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Waits this many seconds after text greeting, and between each subsequent sample video.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Video Sequence Caption (Sent with Video #1)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Pls find these sample we did for other brands"
+                    value={videoCaption}
+                    onChange={(e) => setVideoCaption(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -281,37 +403,42 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-blue-600" />
-                Step 3: PDF Document / Pricing Brochure Follow-up
+                Step 3: PDF Pricing Brochure Follow-up
               </span>
-              <span className="text-[11px] text-slate-500">Sent automatically after video</span>
+              <span className="text-[11px] text-slate-500">Sent automatically after videos</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Select PDF / Document Asset</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Select PDF Asset</label>
                 <select
                   value={documentAssetId}
                   onChange={(e) => setDocumentAssetId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">No PDF Document (Skip Step)</option>
-                  {mediaAssets.map((asset) => (
+                  {documentAssets.map((asset) => (
                     <option key={asset.id} value={asset.id}>
                       {asset.title} ({asset.mimeType.includes('pdf') ? 'PDF' : 'Media'})
+                    </option>
+                  ))}
+                  {mediaAssets.filter(a => !documentAssets.includes(a)).map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.title}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Delay After Video (Seconds)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Delay After Videos (Seconds)</label>
                 <input
                   type="number"
                   min={0}
                   max={300}
                   value={documentDelaySeconds}
                   onChange={(e) => setDocumentDelaySeconds(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -324,7 +451,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                   placeholder="e.g. Please refer to the PDF above for video types and pricing packages 👆"
                   value={documentCaption}
                   onChange={(e) => setDocumentCaption(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             )}
