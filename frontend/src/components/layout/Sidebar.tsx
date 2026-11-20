@@ -11,7 +11,8 @@ import {
   Zap,
   CheckCircle2,
   LogOut,
-  User
+  User,
+  HardDrive
 } from 'lucide-react';
 
 const navigation = [
@@ -19,7 +20,7 @@ const navigation = [
   { name: 'Campaigns', href: '/campaigns', icon: Send },
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'WhatsApp Inbox', href: '/inbox', icon: MessageSquare },
-  { name: 'Video Library', href: '/media', icon: Video },
+  { name: 'Google Drive Media', href: '/media', icon: HardDrive },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ];
 

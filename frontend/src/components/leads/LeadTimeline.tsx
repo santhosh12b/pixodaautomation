@@ -37,14 +37,14 @@ export const LeadTimeline: React.FC<LeadTimelineProps> = ({ lead, messages = [] 
     },
     {
       title: 'WhatsApp Step 1: Text Message',
-      desc: textMsg ? `Sent via Unipile (${textMsg.deliveryStatus})` : lead.status === 'new' ? 'Queued in Neon persistent queue' : 'Not sent',
+      desc: textMsg ? `Sent via WhatsApp (${textMsg.deliveryStatus})` : lead.status === 'new' ? 'Queued in Neon persistent queue' : 'Not sent',
       time: textMsg ? new Date(textMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
       icon: Send,
       status: textMsg ? 'completed' : lead.status === 'new' ? 'pending' : 'skipped',
     },
     {
       title: 'WhatsApp Step 2: Promotional Video',
-      desc: videoMsg ? `Delivered video asset via Unipile` : textMsg ? 'Scheduled / Processed' : 'Waiting for Step 1 completion',
+      desc: videoMsg ? `Delivered promotional video via WhatsApp` : textMsg ? 'Scheduled / Processed' : 'Waiting for Step 1 completion',
       time: videoMsg ? new Date(videoMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
       icon: Video,
       status: videoMsg ? 'completed' : textMsg ? 'pending' : 'skipped',

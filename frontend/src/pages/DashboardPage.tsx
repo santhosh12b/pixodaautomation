@@ -64,7 +64,7 @@ export const DashboardPage: React.FC = () => {
           title="Delivery Rate"
           value={metricsLoading ? '...' : `${metrics?.deliveryRate ?? 0}%`}
           change="Real-time"
-          subtitle="Delivered via Unipile"
+          subtitle="Delivered via WhatsApp"
           icon={CheckCircle}
           iconColor="text-teal-600 bg-teal-50 border-teal-100"
         />

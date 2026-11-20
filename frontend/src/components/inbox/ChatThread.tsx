@@ -93,7 +93,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({ leadId }) => {
         <div className="flex items-center gap-2">
           <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Unipile Sync Active
+            WhatsApp Sync Active
           </span>
         </div>
       </div>

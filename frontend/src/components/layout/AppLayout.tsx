@@ -8,7 +8,7 @@ const titleMap: Record<string, string> = {
   '/campaigns': 'Campaigns & Message Automation',
   '/leads': 'Lead Management & Activity Timeline',
   '/inbox': 'WhatsApp 2-Way Inbox',
-  '/media': 'Promotional Video Library',
+  '/media': 'Google Drive Media Storage',
   '/analytics': 'Performance Analytics & Funnel',
 };
 

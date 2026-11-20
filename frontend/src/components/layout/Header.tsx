@@ -24,9 +24,9 @@ export const Header: React.FC<{ title?: string }> = ({ title = 'Dashboard Overvi
     <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between shrink-0">
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h2>
-        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          Unipile WhatsApp Connected
+          WhatsApp Connected
         </span>
       </div>
 
