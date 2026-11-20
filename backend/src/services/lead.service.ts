@@ -127,9 +127,10 @@ export class LeadService {
             const va = campaign.videoAssets[i];
             videoAssetsList.push({
               url: va.blobUrl,
+              // Only Video #1 receives caption; all subsequent sample videos are sent cleanly without captions
               caption: i === 0 
                 ? (campaign.videoCaption || 'Pls find these sample we did for other brands')
-                : (va.title ? `${va.title} 🎬` : undefined),
+                : '',
               delaySeconds: campaign.videoDelaySeconds,
             });
           }
@@ -323,9 +324,10 @@ export class LeadService {
         const va = campaign.videoAssets[i];
         videoAssetsList.push({
           url: va.blobUrl,
+          // Only Video #1 receives caption; all subsequent sample videos are sent cleanly without captions
           caption: i === 0 
             ? (campaign.videoCaption || 'Pls find these sample we did for other brands')
-            : (va.title ? `${va.title} 🎬` : undefined),
+            : '',
           delaySeconds: campaign.videoDelaySeconds,
         });
       }

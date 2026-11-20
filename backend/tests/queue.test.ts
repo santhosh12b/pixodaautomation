@@ -119,9 +119,9 @@ describe('Task 4: Persistent Queue Engine', () => {
         text: 'Hi Santhosh\nThank you for enquiring with us regarding AI videos',
         videoAssets: [
           { url: 'https://blob/sample-video-1.mp4', caption: 'Pls find these sample we did for other brands', delaySeconds: 0 },
-          { url: 'https://blob/sample-video-2.mp4', caption: 'Sample 2: AI Brand Commercial 🎬', delaySeconds: 0 },
-          { url: 'https://blob/sample-video-3.mp4', caption: 'Sample 3: AI Property Tour 🎬', delaySeconds: 0 },
-          { url: 'https://blob/sample-video-4.mp4', caption: 'Sample 4: AI Social Media Feature 🎬', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-2.mp4', caption: '', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-3.mp4', caption: '', delaySeconds: 0 },
+          { url: 'https://blob/sample-video-4.mp4', caption: '', delaySeconds: 0 },
         ],
         documentAsset: {
           url: 'https://blob/the-editing-crew-packages.pdf',
