@@ -15,25 +15,76 @@ export interface MediaAssetRecord {
   createdAt: Date;
 }
 
+const KNOWN_MEDIA_SIZES: Record<string, number> = {
+  'https://pixodaautomation-frontend.vercel.app/sample-video-1.mp4': 5323704,
+  'https://pixodaautomation-frontend.vercel.app/sample-video-2.mp4': 12611091,
+  'https://pixodaautomation-frontend.vercel.app/sample-video-3.mp4': 4599809,
+  'https://pixodaautomation-frontend.vercel.app/sample-video-4.mp4': 7520943,
+  'https://pixodaautomation-frontend.vercel.app/the-editing-crew-packages.pdf': 672955,
+  'https://pixodaautomation-frontend.vercel.app/sample-ai-video.mp4': 33349155,
+};
+
 export class MediaService {
   private isMockStore: boolean;
   private mockAssets: Map<string, MediaAssetRecord> = new Map();
+  private sizesSynced = false;
 
   constructor(options?: { mockStore?: boolean }) {
     this.isMockStore = options?.mockStore ?? (process.env.NODE_ENV === 'test');
   }
 
+  async syncMediaSizes(): Promise<void> {
+    if (this.sizesSynced || this.isMockStore) return;
+    try {
+      await db.update(mediaAssets)
+        .set({ fileSize: 5323704 })
+        .where(eq(mediaAssets.blobUrl, 'https://pixodaautomation-frontend.vercel.app/sample-video-1.mp4'));
+
+      await db.update(mediaAssets)
+        .set({ fileSize: 12611091 })
+        .where(eq(mediaAssets.blobUrl, 'https://pixodaautomation-frontend.vercel.app/sample-video-2.mp4'));
+
+      await db.update(mediaAssets)
+        .set({ fileSize: 4599809 })
+        .where(eq(mediaAssets.blobUrl, 'https://pixodaautomation-frontend.vercel.app/sample-video-3.mp4'));
+
+      await db.update(mediaAssets)
+        .set({ fileSize: 7520943 })
+        .where(eq(mediaAssets.blobUrl, 'https://pixodaautomation-frontend.vercel.app/sample-video-4.mp4'));
+
+      await db.update(mediaAssets)
+        .set({ fileSize: 672955 })
+        .where(eq(mediaAssets.blobUrl, 'https://pixodaautomation-frontend.vercel.app/the-editing-crew-packages.pdf'));
+
+      this.sizesSynced = true;
+    } catch (err) {
+      console.warn('syncMediaSizes warning:', err);
+    }
+  }
+
   async listMedia(): Promise<MediaAssetRecord[]> {
+    await this.syncMediaSizes();
+    let records: MediaAssetRecord[];
+
     if (this.isMockStore) {
-      return Array.from(this.mockAssets.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      records = Array.from(this.mockAssets.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } else {
+      try {
+        const list = await db.select().from(mediaAssets).orderBy(desc(mediaAssets.createdAt));
+        records = list as unknown as MediaAssetRecord[];
+      } catch {
+        records = Array.from(this.mockAssets.values());
+      }
     }
 
-    try {
-      const list = await db.select().from(mediaAssets).orderBy(desc(mediaAssets.createdAt));
-      return list as unknown as MediaAssetRecord[];
-    } catch {
-      return Array.from(this.mockAssets.values());
-    }
+    // Apply accurate byte sizes for known static media assets
+    return records.map((record) => {
+      const knownSize = KNOWN_MEDIA_SIZES[record.blobUrl];
+      if (knownSize && (!record.fileSize || record.fileSize === 5000000)) {
+        return { ...record, fileSize: knownSize };
+      }
+      return record;
+    });
   }
 
   async createFromUrl(params: {

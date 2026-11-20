@@ -14,3 +14,4 @@ export const ProtectedRoute: React.FC = () => {
 };
 
 export default ProtectedRoute;
+

@@ -7,6 +7,14 @@ import { Input } from '../ui/Input';
 import { TemplateEditor } from './TemplateEditor';
 import { X, Video, ShieldAlert, Sparkles, FileText, ArrowUp, ArrowDown, CheckSquare, Square, ListOrdered } from 'lucide-react';
 
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 interface CampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -345,7 +353,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
 
                         <div className="min-w-0 truncate">
                           <p className="font-semibold text-slate-800 truncate">{asset.title}</p>
-                          <p className="text-[10px] text-slate-400">{(asset.fileSize / (1024 * 1024)).toFixed(1)} MB • video/mp4</p>
+                          <p className="text-[10px] text-slate-400">{formatFileSize(asset.fileSize)} • video/mp4</p>
                         </div>
                       </div>
 
