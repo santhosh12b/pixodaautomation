@@ -346,8 +346,9 @@ export class LeadService {
     } : undefined;
 
     // Retry job with new timestamped idempotency key
+    const dispatchId = Date.now();
     await queueService.enqueue({
-      idempotencyKey: `lead_${lead.id}_retry_${Date.now()}`,
+      idempotencyKey: `lead_${lead.id}_retry_${dispatchId}`,
       type: 'send_text',
       leadId: lead.id,
       campaignId: campaign.id,
@@ -357,6 +358,7 @@ export class LeadService {
         videoAssets: videoAssetsList,
         videoAsset: videoAssetsList[0] || undefined,
         documentAsset,
+        dispatchId,
       },
     });
 

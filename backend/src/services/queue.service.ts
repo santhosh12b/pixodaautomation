@@ -265,9 +265,10 @@ export class QueueService {
         const remainingVideos = videoAssets.slice(1);
         const delayMs = (firstVideo.delaySeconds ?? 5) * 1000;
         const videoRunAt = new Date(Date.now() + delayMs);
+        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
 
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_video_0_${job.campaignId}`,
+          idempotencyKey: `lead_${job.leadId}_video_0_${job.campaignId}${dispatchSuffix}`,
           type: 'send_video',
           leadId: job.leadId || undefined,
           campaignId: job.campaignId || undefined,
@@ -278,14 +279,16 @@ export class QueueService {
             videoIndex: 0,
             remainingVideos,
             documentAsset,
+            dispatchId: job.payload.dispatchId,
           },
           runAt: videoRunAt,
         });
       } else if (documentAsset && documentAsset.url) {
         const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
         const docRunAt = new Date(Date.now() + delayMs);
+        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}`,
+          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}${dispatchSuffix}`,
           type: 'send_document',
           leadId: job.leadId || undefined,
           campaignId: job.campaignId || undefined,
@@ -293,6 +296,7 @@ export class QueueService {
             phone,
             documentUrl: documentAsset.url,
             caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+            dispatchId: job.payload.dispatchId,
           },
           runAt: docRunAt,
         });
@@ -339,9 +343,10 @@ export class QueueService {
         const nextIndex = currentIndex + 1;
         const delayMs = (nextVideo.delaySeconds ?? 5) * 1000;
         const nextVideoRunAt = new Date(Date.now() + delayMs);
+        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
 
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_video_${nextIndex}_${job.campaignId}`,
+          idempotencyKey: `lead_${job.leadId}_video_${nextIndex}_${job.campaignId}${dispatchSuffix}`,
           type: 'send_video',
           leadId: job.leadId || undefined,
           campaignId: job.campaignId || undefined,
@@ -352,6 +357,7 @@ export class QueueService {
             videoIndex: nextIndex,
             remainingVideos: nextRemaining,
             documentAsset,
+            dispatchId: job.payload.dispatchId,
           },
           runAt: nextVideoRunAt,
         });
@@ -359,8 +365,9 @@ export class QueueService {
         // All sample videos have completed! Chain the PDF document step!
         const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
         const docRunAt = new Date(Date.now() + delayMs);
+        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}`,
+          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}${dispatchSuffix}`,
           type: 'send_document',
           leadId: job.leadId || undefined,
           campaignId: job.campaignId || undefined,
@@ -368,6 +375,7 @@ export class QueueService {
             phone,
             documentUrl: documentAsset.url,
             caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+            dispatchId: job.payload.dispatchId,
           },
           runAt: docRunAt,
         });
