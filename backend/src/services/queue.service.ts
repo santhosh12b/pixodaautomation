@@ -220,31 +220,52 @@ export class QueueService {
 
     if (job.type === 'send_text') {
       const text = String(job.payload.text || '');
-      const response = await this.unipile.sendTextMessage({
-        recipientPhone: phone,
-        text,
-      });
+      // Support sending multi-line templates as separate WhatsApp messages
+      const textMessages = (Array.isArray(job.payload.texts) && job.payload.texts.length > 0)
+        ? (job.payload.texts as string[])
+        : text.split('\n').map(t => t.trim()).filter(Boolean);
 
-      // Record message
+      const toSend = textMessages.length > 0 ? textMessages : [text];
+
+      for (let i = 0; i < toSend.length; i++) {
+        const msgText = toSend[i];
+        if (i > 0 && !this.isMockStore) {
+          // 1 second pause between text messages for natural sequential delivery
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        const response = await this.unipile.sendTextMessage({
+          recipientPhone: phone,
+          text: msgText,
+        });
+
+        // Record message in DB
+        if (!this.isMockStore && job.leadId) {
+          try {
+            await db.insert(messages).values({
+              id: uuidv4(),
+              leadId: job.leadId,
+              campaignId: job.campaignId,
+              unipileMessageId: response.messageId,
+              direction: 'outbound',
+              type: 'text',
+              content: msgText,
+              deliveryStatus: 'sent',
+            });
+          } catch (dbErr) {
+            console.warn('DB recording message warning:', dbErr);
+          }
+        }
+      }
+
       if (!this.isMockStore && job.leadId) {
         try {
-          await db.insert(messages).values({
-            id: uuidv4(),
-            leadId: job.leadId,
-            campaignId: job.campaignId,
-            unipileMessageId: response.messageId,
-            direction: 'outbound',
-            type: 'text',
-            content: text,
-            deliveryStatus: 'sent',
-          });
-
           // Update lead status to contacted
           await db.update(leads)
             .set({ status: 'contacted', updatedAt: new Date() })
             .where(eq(leads.id, job.leadId));
         } catch (dbErr) {
-          console.warn('DB recording message warning:', dbErr);
+          console.warn('DB updating lead status warning:', dbErr);
         }
       }
 

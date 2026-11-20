@@ -33,17 +33,20 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange 
     }, 0);
   };
 
-  // Generate live preview with sample data
-  const renderPreview = (template: string) => {
-    if (!template.trim()) return 'Start typing your template above to preview...';
+  // Generate live preview with sample data split into distinct messages by newline
+  const renderPreviewMessages = (template: string): string[] => {
+    if (!template.trim()) return ['Start typing your template above to preview...'];
     let preview = template;
     preview = preview.replace(/\{\{\s*name\s*\}\}/gi, 'Alex Morgan');
     preview = preview.replace(/\{\{\s*phone\s*\}\}/gi, '+1 (555) 019-2834');
     preview = preview.replace(/\{\{\s*Company\s*\}\}/gi, 'Acme Corp');
     preview = preview.replace(/\{\{\s*Interest\s*\}\}/gi, 'Enterprise Automation');
     preview = preview.replace(/\{\{\s*City\s*\}\}/gi, 'Austin');
-    return preview;
+    const lines = preview.split('\n').map(l => l.trim()).filter(Boolean);
+    return lines.length > 0 ? lines : [preview];
   };
+
+  const previewMessages = renderPreviewMessages(value);
 
   return (
     <div className="space-y-4">
@@ -74,25 +77,38 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange 
           rows={4}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Hi {{name}}, thanks for your interest in {{Interest}}! We have a quick demo ready for you..."
+          placeholder="Hi {{name}}&#10;Thank you for enquiring with us regarding AI videos"
           className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
+        <p className="text-[11px] text-slate-500 mt-1">
+          💡 Each line will be delivered as its own separate WhatsApp message bubble.
+        </p>
       </div>
 
       {/* Live Preview Box */}
       <div>
-        <span className="block text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1.5">
-          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-          Live WhatsApp Message Preview (Alex Morgan)
-        </span>
-        <div className="bg-[#EFEAE2] p-4 rounded-xl border border-slate-200 shadow-inner">
-          <div className="max-w-[85%] bg-white rounded-lg p-3 text-sm text-slate-900 shadow-xs relative rounded-tl-none">
-            <p className="whitespace-pre-wrap leading-relaxed">{renderPreview(value)}</p>
-            <div className="text-[10px] text-slate-400 text-right mt-1 font-mono flex items-center justify-end gap-1">
-              <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              <span className="text-blue-500">✓✓</span>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+            Live WhatsApp Message Preview (Alex Morgan)
+          </span>
+          <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            {previewMessages.length} {previewMessages.length === 1 ? 'Message' : 'Messages'}
+          </span>
+        </div>
+        <div className="bg-[#EFEAE2] p-4 rounded-xl border border-slate-200 shadow-inner space-y-2">
+          {previewMessages.map((msg, idx) => (
+            <div key={idx} className="max-w-[85%] bg-white rounded-lg p-3 text-sm text-slate-900 shadow-xs relative rounded-tl-none">
+              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase tracking-wider mb-1 inline-block">
+                Message #{idx + 1}
+              </span>
+              <p className="whitespace-pre-wrap leading-relaxed">{msg}</p>
+              <div className="text-[10px] text-slate-400 text-right mt-1 font-mono flex items-center justify-end gap-1">
+                <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-blue-500">✓✓</span>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
