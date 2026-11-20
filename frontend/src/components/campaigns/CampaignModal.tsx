@@ -428,7 +428,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Video Sequence Caption (Sent with Video #1)
+                    Sample Videos Intro Text (Sent before Video #1)
                   </label>
                   <input
                     type="text"
@@ -437,6 +437,9 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                     onChange={(e) => setVideoCaption(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Delivered as a standalone text message right before the sample videos arrive.
+                  </p>
                 </div>
               </div>
             )}

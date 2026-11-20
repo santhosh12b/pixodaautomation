@@ -327,10 +327,41 @@ export class QueueService {
       const videoUrl = String(job.payload.videoUrl || '');
       const caption = String(job.payload.caption || '');
 
+      // If an introductory caption was configured for this video (e.g. "Pls find these sample we did for other brands"),
+      // deliver it FIRST as a separate text message so it appears above the video, rather than inside the video caption bubble.
+      if (caption && caption.trim()) {
+        const textRes = await this.unipile.sendTextMessage({
+          recipientPhone: phone,
+          text: caption.trim(),
+        });
+
+        if (!this.isMockStore && job.leadId) {
+          try {
+            await db.insert(messages).values({
+              id: uuidv4(),
+              leadId: job.leadId,
+              campaignId: job.campaignId,
+              unipileMessageId: textRes.messageId,
+              direction: 'outbound',
+              type: 'text',
+              content: caption.trim(),
+              deliveryStatus: 'sent',
+            });
+          } catch (dbErr) {
+            console.warn('DB recording text message warning:', dbErr);
+          }
+        }
+
+        if (!this.isMockStore) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      }
+
+      // Deliver video cleanly without embedded caption
       const response = await this.unipile.sendMediaMessage({
         recipientPhone: phone,
         mediaUrl: videoUrl,
-        caption,
+        caption: '',
         mimeType: 'video/mp4',
       });
 
@@ -343,7 +374,7 @@ export class QueueService {
             unipileMessageId: response.messageId,
             direction: 'outbound',
             type: 'video',
-            content: caption || '',
+            content: '',
             mediaUrl: videoUrl,
             deliveryStatus: 'sent',
           });
