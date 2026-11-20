@@ -102,7 +102,48 @@ export class UnipileService {
     }
 
     const attendeeId = this.formatRecipient(params.recipientPhone);
-    const mediaText = params.caption ? `${params.caption}\n\n${params.mediaUrl}` : params.mediaUrl;
+    const caption = params.caption || '';
+
+    try {
+      // Fetch media blob from URL or public CDN
+      const mediaRes = await fetch(params.mediaUrl);
+      if (mediaRes.ok) {
+        const arrayBuffer = await mediaRes.arrayBuffer();
+        const mimeType = params.mimeType || mediaRes.headers.get('content-type') || 'application/octet-stream';
+        const filename = params.mediaUrl.split('/').pop()?.split('?')[0] || (mimeType.includes('pdf') ? 'document.pdf' : 'video.mp4');
+        const blob = new Blob([arrayBuffer], { type: mimeType });
+
+        const formData = new FormData();
+        if (caption) formData.append('text', caption);
+        formData.append('attachments', blob, filename);
+        formData.append('account_id', params.accountId || this.accountId);
+        formData.append('attendees_ids[]', attendeeId);
+
+        const response = await fetch(`${this.baseUrl}/api/v1/chats`, {
+          method: 'POST',
+          headers: {
+            'X-API-KEY': this.apiKey,
+            'Accept': 'application/json',
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json() as Record<string, any>;
+          return {
+            success: true,
+            messageId: data.id || data.message_id || `up_media_${uuidv4()}`,
+            chatId: data.chat_id || data.id,
+            raw: data,
+          };
+        }
+      }
+    } catch (attachmentErr) {
+      console.warn('FormData attachment send failed, falling back to URL payload:', attachmentErr);
+    }
+
+    // Fallback to text + URL link
+    const mediaText = caption ? `${caption}\n\n${params.mediaUrl}` : params.mediaUrl;
     const payload = {
       account_id: params.accountId || this.accountId,
       text: mediaText,
