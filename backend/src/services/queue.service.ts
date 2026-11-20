@@ -229,6 +229,7 @@ export class QueueService {
       if (!this.isMockStore && job.leadId) {
         try {
           await db.insert(messages).values({
+            id: uuidv4(),
             leadId: job.leadId,
             campaignId: job.campaignId,
             unipileMessageId: response.messageId,
@@ -315,12 +316,13 @@ export class QueueService {
       if (!this.isMockStore && job.leadId) {
         try {
           await db.insert(messages).values({
+            id: uuidv4(),
             leadId: job.leadId,
             campaignId: job.campaignId,
             unipileMessageId: response.messageId,
             direction: 'outbound',
             type: 'video',
-            content: caption,
+            content: caption || '',
             mediaUrl: videoUrl,
             deliveryStatus: 'sent',
           });
@@ -394,12 +396,13 @@ export class QueueService {
       if (!this.isMockStore && job.leadId) {
         try {
           await db.insert(messages).values({
+            id: uuidv4(),
             leadId: job.leadId,
             campaignId: job.campaignId,
             unipileMessageId: response.messageId,
             direction: 'outbound',
             type: 'document',
-            content: caption,
+            content: caption || '',
             mediaUrl: documentUrl,
             deliveryStatus: 'sent',
           });
