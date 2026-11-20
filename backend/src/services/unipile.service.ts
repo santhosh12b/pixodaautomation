@@ -23,35 +23,31 @@ export interface UnipileSendResponse {
 }
 
 export class UnipileService {
-  private baseUrl: string = 'https://api.unipile.com';
+  private baseUrl: string = 'https://api52.unipile.com:18234';
   private apiKey: string = '';
   private accountId: string;
   private isMock: boolean;
 
-  constructor(options?: { mock?: boolean; dsn?: string; accountId?: string }) {
+  constructor(options?: { mock?: boolean; dsn?: string; apiKey?: string; accountId?: string }) {
     this.isMock = options?.mock ?? (
       env.NODE_ENV === 'test' || 
-      !env.UNIPILE_DSN || 
-      env.UNIPILE_DSN.includes('mock') || 
-      env.UNIPILE_DSN.includes('test')
+      (!process.env.UNIPILE_API_KEY && (!env.UNIPILE_DSN || env.UNIPILE_DSN.includes('mock')))
     );
 
-    const dsn = options?.dsn || env.UNIPILE_DSN || '';
-    this.accountId = options?.accountId || env.UNIPILE_ACCOUNT_ID || 'mock-whatsapp-acc';
+    const dsn = options?.dsn || process.env.UNIPILE_DSN || env.UNIPILE_DSN || 'https://api52.unipile.com:18234';
+    this.accountId = options?.accountId || process.env.UNIPILE_ACCOUNT_ID || env.UNIPILE_ACCOUNT_ID || 'XtNydP-1SqCjFa49UP-KeA';
+    this.apiKey = options?.apiKey || process.env.UNIPILE_API_KEY || (env as Record<string, any>).UNIPILE_API_KEY || '';
 
-    if (dsn.includes(':')) {
-      const parts = dsn.split(':');
-      // Format https://domain:token
-      if (parts.length >= 3) {
-        this.baseUrl = `${parts[0]}:${parts[1]}`;
-        this.apiKey = parts.slice(2).join(':');
-      } else {
-        this.baseUrl = parts[0];
-        this.apiKey = parts[1];
-      }
-    } else {
-      this.apiKey = dsn;
+    let base = dsn.trim();
+    if (base && !base.startsWith('http://') && !base.startsWith('https://')) {
+      base = `https://${base}`;
     }
+    this.baseUrl = base || 'https://api52.unipile.com:18234';
+  }
+
+  private formatRecipient(phone: string): string {
+    const clean = phone.replace(/[^\d+]/g, '').replace(/^\+/, '');
+    return clean.includes('@') ? clean : `${clean}@s.whatsapp.net`;
   }
 
   async sendTextMessage(params: SendTextMessageParams): Promise<UnipileSendResponse> {
@@ -64,13 +60,14 @@ export class UnipileService {
       };
     }
 
+    const attendeeId = this.formatRecipient(params.recipientPhone);
     const payload = {
       account_id: params.accountId || this.accountId,
       text: params.text,
-      attendees_ids: [params.recipientPhone],
+      attendees_ids: [attendeeId],
     };
 
-    const response = await fetch(`${this.baseUrl}/api/v1/messages`, {
+    const response = await fetch(`${this.baseUrl}/api/v1/chats`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -85,11 +82,11 @@ export class UnipileService {
       throw new Error(`Unipile sendTextMessage failed (${response.status}): ${errText}`);
     }
 
-    const data = await response.json() as { id?: string; chat_id?: string };
+    const data = await response.json() as Record<string, any>;
     return {
       success: true,
-      messageId: data.id || `up_${uuidv4()}`,
-      chatId: data.chat_id,
+      messageId: data.id || data.message_id || `up_${uuidv4()}`,
+      chatId: data.chat_id || data.id,
       raw: data,
     };
   }
@@ -104,19 +101,15 @@ export class UnipileService {
       };
     }
 
+    const attendeeId = this.formatRecipient(params.recipientPhone);
+    const mediaText = params.caption ? `${params.caption}\n\n${params.mediaUrl}` : params.mediaUrl;
     const payload = {
       account_id: params.accountId || this.accountId,
-      text: params.caption || '',
-      attendees_ids: [params.recipientPhone],
-      attachments: [
-        {
-          url: params.mediaUrl,
-          mimetype: params.mimeType || 'video/mp4',
-        },
-      ],
+      text: mediaText,
+      attendees_ids: [attendeeId],
     };
 
-    const response = await fetch(`${this.baseUrl}/api/v1/messages`, {
+    const response = await fetch(`${this.baseUrl}/api/v1/chats`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -131,11 +124,11 @@ export class UnipileService {
       throw new Error(`Unipile sendMediaMessage failed (${response.status}): ${errText}`);
     }
 
-    const data = await response.json() as { id?: string; chat_id?: string };
+    const data = await response.json() as Record<string, any>;
     return {
       success: true,
-      messageId: data.id || `up_media_${uuidv4()}`,
-      chatId: data.chat_id,
+      messageId: data.id || data.message_id || `up_media_${uuidv4()}`,
+      chatId: data.chat_id || data.id,
       raw: data,
     };
   }
@@ -168,4 +161,3 @@ export class UnipileService {
 }
 
 export const unipileService = new UnipileService();
-
