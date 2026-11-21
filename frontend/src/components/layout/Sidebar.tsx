@@ -35,7 +35,7 @@ export const Sidebar: React.FC = () => {
         </div>
         <div>
           <h1 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-            AutoWhatsApp <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Pro</span>
+            PixodaWhatsApp <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Automation</span>
           </h1>
           <p className="text-[11px] text-slate-400">Lead Automation Suite</p>
         </div>
@@ -95,7 +95,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={logout}
-          title="Sign out of AutoWhatsApp"
+          title="Sign out of PixodaWhatsApp"
           className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors shrink-0"
         >
           <LogOut className="w-4 h-4" />

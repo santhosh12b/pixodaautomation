@@ -78,7 +78,7 @@ export const LoginPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            AutoWhatsApp Pro • Lead Automation Suite
+            PixodaWhatsApp Automation • Lead Suite
           </p>
         </div>
 
