@@ -25,9 +25,11 @@ export interface Campaign {
   videoAssetIds?: string[] | null;
   videoCaption: string | null;
   videoDelaySeconds: number;
+  websiteText?: string | null;
   documentAssetId: string | null;
   documentCaption: string | null;
   documentDelaySeconds: number;
+  locationText?: string | null;
   cooldownHours: number;
   videoAsset?: {
     id?: string;
