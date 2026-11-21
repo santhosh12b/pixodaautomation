@@ -29,20 +29,18 @@ export class UnipileService {
   private isMock: boolean;
 
   constructor(options?: { mock?: boolean; dsn?: string; apiKey?: string; accountId?: string }) {
-    this.isMock = options?.mock ?? (
-      env.NODE_ENV === 'test' || 
-      (!process.env.UNIPILE_API_KEY && (!env.UNIPILE_DSN || env.UNIPILE_DSN.includes('mock')))
-    );
+    this.apiKey = options?.apiKey || process.env.UNIPILE_API_KEY || (env as Record<string, any>).UNIPILE_API_KEY || 'Rx1aW1rw.5sbbxoN7NuMHUJJHyBvpx7CLh9Q1QyB/Wvya1eDeX6w=';
+    this.accountId = options?.accountId || process.env.UNIPILE_ACCOUNT_ID || (env as Record<string, any>).UNIPILE_ACCOUNT_ID || 'XtNydP-1SqCjFa49UP-KeA';
 
     const dsn = options?.dsn || process.env.UNIPILE_DSN || env.UNIPILE_DSN || 'https://api52.unipile.com:18234';
-    this.accountId = options?.accountId || process.env.UNIPILE_ACCOUNT_ID || env.UNIPILE_ACCOUNT_ID || 'XtNydP-1SqCjFa49UP-KeA';
-    this.apiKey = options?.apiKey || process.env.UNIPILE_API_KEY || (env as Record<string, any>).UNIPILE_API_KEY || '';
-
     let base = dsn.trim();
     if (base && !base.startsWith('http://') && !base.startsWith('https://')) {
       base = `https://${base}`;
     }
     this.baseUrl = base || 'https://api52.unipile.com:18234';
+
+    // Mock ONLY in vitest/unit test environment
+    this.isMock = options?.mock ?? (process.env.NODE_ENV === 'test');
   }
 
   private formatRecipient(phone: string): string {
