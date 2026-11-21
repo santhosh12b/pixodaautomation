@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/client.js';
 import { queueJobs, messages, leads } from '../db/schema.js';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { eq, and, lte, asc, sql } from 'drizzle-orm';
 import { UnipileService, unipileService as defaultUnipile } from './unipile.service.js';
 
 export interface EnqueueJobParams {
@@ -178,37 +178,108 @@ export class QueueService {
         RETURNING *;
       `);
 
-      return (result.rows || []) as unknown as QueueJobRecord[];
+      const rows = (result.rows || []) as any[];
+      return rows.map(r => ({
+        id: r.id,
+        idempotencyKey: r.idempotency_key || r.idempotencyKey,
+        type: r.type,
+        leadId: r.lead_id || r.leadId || null,
+        campaignId: r.campaign_id || r.campaignId || null,
+        payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : (r.payload || {}),
+        status: r.status,
+        attempts: Number(r.attempts || 0),
+        maxAttempts: Number(r.max_attempts || r.maxAttempts || 3),
+        runAt: new Date(r.run_at || r.runAt || now),
+        lockedAt: r.locked_at ? new Date(r.locked_at) : (r.lockedAt ? new Date(r.lockedAt) : null),
+        lockedBy: r.locked_by || r.lockedBy || null,
+        lastError: r.last_error || r.lastError || null,
+        createdAt: new Date(r.created_at || r.createdAt || now),
+        updatedAt: new Date(r.updated_at || r.updatedAt || now),
+      })) as QueueJobRecord[];
     } catch {
       return [];
     }
   }
 
-  async processBatch(options?: { batchSize?: number; workerId?: string }): Promise<ProcessBatchResult> {
-    const batchSize = options?.batchSize || 10;
-    const workerId = options?.workerId || `worker_${uuidv4().slice(0, 8)}`;
-
-    const jobs = await this.claimBatch(batchSize, workerId);
-    let successCount = 0;
-    let failedCount = 0;
-
-    for (const job of jobs) {
-      try {
-        await this.executeJob(job);
-        await this.markJobCompleted(job.id);
-        successCount++;
-      } catch (err) {
-        failedCount++;
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        await this.handleJobFailure(job, errorMessage);
+  async getNextScheduledPendingDelayMs(): Promise<number | null> {
+    if (this.isMockStore) {
+      let minRunAt: Date | null = null;
+      for (const job of this.mockJobs.values()) {
+        if (job.status === 'pending') {
+          if (!minRunAt || job.runAt < minRunAt) {
+            minRunAt = job.runAt;
+          }
+        }
       }
+      if (!minRunAt) return null;
+      return Math.max(0, minRunAt.getTime() - Date.now());
     }
 
+    try {
+      const [nextJob] = await db
+        .select({ runAt: queueJobs.runAt })
+        .from(queueJobs)
+        .where(eq(queueJobs.status, 'pending'))
+        .orderBy(asc(queueJobs.runAt))
+        .limit(1);
+
+      if (!nextJob) return null;
+      return Math.max(0, new Date(nextJob.runAt).getTime() - Date.now());
+    } catch {
+      return null;
+    }
+  }
+
+  async processBatch(options?: { batchSize?: number; workerId?: string; maxDurationMs?: number }): Promise<ProcessBatchResult> {
+    const batchSize = options?.batchSize || 10;
+    const workerId = options?.workerId || `worker_${uuidv4().slice(0, 8)}`;
+    const maxDurationMs = options?.maxDurationMs ?? (process.env.NODE_ENV === 'test' ? 0 : 12000);
+    const startTime = Date.now();
+
+    let totalClaimed = 0;
+    let totalProcessed = 0;
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
+    do {
+      const jobs = await this.claimBatch(batchSize, workerId);
+      if (jobs.length === 0) {
+        if (maxDurationMs > 0 && (Date.now() - startTime < maxDurationMs)) {
+          // If there is a scheduled job within 3.5s, wait briefly and claim it
+          const nextDelay = await this.getNextScheduledPendingDelayMs();
+          if (nextDelay !== null && nextDelay >= 0 && nextDelay <= 3500 && (Date.now() - startTime + nextDelay < maxDurationMs)) {
+            await new Promise(resolve => setTimeout(resolve, nextDelay + 100));
+            continue;
+          }
+        }
+        break;
+      }
+
+      for (const job of jobs) {
+        try {
+          await this.executeJob(job);
+          await this.markJobCompleted(job.id);
+          totalSuccess++;
+        } catch (err) {
+          totalFailed++;
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          await this.handleJobFailure(job, errorMessage);
+        }
+        totalProcessed++;
+      }
+      totalClaimed += jobs.length;
+
+      // In test mode, don't loop
+      if (process.env.NODE_ENV === 'test' || maxDurationMs === 0) {
+        break;
+      }
+    } while (Date.now() - startTime < maxDurationMs);
+
     return {
-      claimedCount: jobs.length,
-      processedCount: jobs.length,
-      successCount,
-      failedCount,
+      claimedCount: totalClaimed,
+      processedCount: totalProcessed,
+      successCount: totalSuccess,
+      failedCount: totalFailed,
     };
   }
 
@@ -217,6 +288,9 @@ export class QueueService {
     if (!phone) {
       throw new Error('Payload missing phone number');
     }
+
+    const leadId = job.leadId || (job as any).lead_id || null;
+    const campaignId = job.campaignId || (job as any).campaign_id || null;
 
     if (job.type === 'send_text') {
       const text = String(job.payload.text || '');
@@ -240,12 +314,12 @@ export class QueueService {
         });
 
         // Record message in DB
-        if (!this.isMockStore && job.leadId) {
+        if (!this.isMockStore && leadId) {
           try {
             await db.insert(messages).values({
               id: uuidv4(),
-              leadId: job.leadId,
-              campaignId: job.campaignId,
+              leadId,
+              campaignId,
               unipileMessageId: response.messageId,
               direction: 'outbound',
               type: 'text',
@@ -258,12 +332,12 @@ export class QueueService {
         }
       }
 
-      if (!this.isMockStore && job.leadId) {
+      if (!this.isMockStore && leadId) {
         try {
           // Update lead status to contacted
           await db.update(leads)
             .set({ status: 'contacted', updatedAt: new Date() })
-            .where(eq(leads.id, job.leadId));
+            .where(eq(leads.id, leadId));
         } catch (dbErr) {
           console.warn('DB updating lead status warning:', dbErr);
         }
@@ -285,15 +359,15 @@ export class QueueService {
       if (videoAssets.length > 0) {
         const firstVideo = videoAssets[0];
         const remainingVideos = videoAssets.slice(1);
-        const delayMs = (firstVideo.delaySeconds ?? 5) * 1000;
+        const delayMs = Math.min((firstVideo.delaySeconds ?? 2), 3) * 1000;
         const videoRunAt = new Date(Date.now() + delayMs);
         const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
 
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_video_0_${job.campaignId}${dispatchSuffix}`,
+          idempotencyKey: `lead_${leadId}_video_0_${campaignId}${dispatchSuffix}`,
           type: 'send_video',
-          leadId: job.leadId || undefined,
-          campaignId: job.campaignId || undefined,
+          leadId: leadId || undefined,
+          campaignId: campaignId || undefined,
           payload: {
             phone,
             videoUrl: firstVideo.url,
@@ -306,14 +380,14 @@ export class QueueService {
           runAt: videoRunAt,
         });
       } else if (documentAsset && documentAsset.url) {
-        const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
+        const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
         const docRunAt = new Date(Date.now() + delayMs);
         const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}${dispatchSuffix}`,
+          idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
           type: 'send_document',
-          leadId: job.leadId || undefined,
-          campaignId: job.campaignId || undefined,
+          leadId: leadId || undefined,
+          campaignId: campaignId || undefined,
           payload: {
             phone,
             documentUrl: documentAsset.url,
@@ -335,12 +409,12 @@ export class QueueService {
           text: caption.trim(),
         });
 
-        if (!this.isMockStore && job.leadId) {
+        if (!this.isMockStore && leadId) {
           try {
             await db.insert(messages).values({
               id: uuidv4(),
-              leadId: job.leadId,
-              campaignId: job.campaignId,
+              leadId,
+              campaignId,
               unipileMessageId: textRes.messageId,
               direction: 'outbound',
               type: 'text',
@@ -365,12 +439,12 @@ export class QueueService {
         mimeType: 'video/mp4',
       });
 
-      if (!this.isMockStore && job.leadId) {
+      if (!this.isMockStore && leadId) {
         try {
           await db.insert(messages).values({
             id: uuidv4(),
-            leadId: job.leadId,
-            campaignId: job.campaignId,
+            leadId,
+            campaignId,
             unipileMessageId: response.messageId,
             direction: 'outbound',
             type: 'video',
@@ -395,15 +469,15 @@ export class QueueService {
         const nextRemaining = remainingVideos.slice(1);
         const currentIndex = Number(job.payload.videoIndex ?? 0);
         const nextIndex = currentIndex + 1;
-        const delayMs = (nextVideo.delaySeconds ?? 5) * 1000;
+        const delayMs = Math.min((nextVideo.delaySeconds ?? 2), 3) * 1000;
         const nextVideoRunAt = new Date(Date.now() + delayMs);
         const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
 
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_video_${nextIndex}_${job.campaignId}${dispatchSuffix}`,
+          idempotencyKey: `lead_${leadId}_video_${nextIndex}_${campaignId}${dispatchSuffix}`,
           type: 'send_video',
-          leadId: job.leadId || undefined,
-          campaignId: job.campaignId || undefined,
+          leadId: leadId || undefined,
+          campaignId: campaignId || undefined,
           payload: {
             phone,
             videoUrl: nextVideo.url,
@@ -417,14 +491,14 @@ export class QueueService {
         });
       } else if (documentAsset && documentAsset.url) {
         // All sample videos have completed! Chain the PDF document step!
-        const delayMs = (documentAsset.delaySeconds ?? 5) * 1000;
+        const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
         const docRunAt = new Date(Date.now() + delayMs);
         const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
         await this.enqueue({
-          idempotencyKey: `lead_${job.leadId}_doc_${job.campaignId}${dispatchSuffix}`,
+          idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
           type: 'send_document',
-          leadId: job.leadId || undefined,
-          campaignId: job.campaignId || undefined,
+          leadId: leadId || undefined,
+          campaignId: campaignId || undefined,
           payload: {
             phone,
             documentUrl: documentAsset.url,
@@ -445,12 +519,12 @@ export class QueueService {
         mimeType: 'application/pdf',
       });
 
-      if (!this.isMockStore && job.leadId) {
+      if (!this.isMockStore && leadId) {
         try {
           await db.insert(messages).values({
             id: uuidv4(),
-            leadId: job.leadId,
-            campaignId: job.campaignId,
+            leadId,
+            campaignId,
             unipileMessageId: response.messageId,
             direction: 'outbound',
             type: 'document',

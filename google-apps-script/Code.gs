@@ -203,7 +203,8 @@ function processNewLeads() {
   }
 
   if (leadsToSend.length === 0) {
-    Logger.log(`ℹ️ Tab "${sheetName}": No new unprocessed leads found.`);
+    Logger.log(`ℹ️ Tab "${sheetName}": No new unprocessed leads found. Flushing any scheduled queue jobs...`);
+    flushBackendQueue(config);
     return;
   }
 
@@ -229,6 +230,7 @@ function processNewLeads() {
         sheet.getRange(rowIdx, processedCol + 1).setValue(`PROCESSED: ${now}`);
       }
       Logger.log(`✅ Success! Delivered ${leadsToSend.length} leads. Rows updated to PROCESSED.`);
+      flushBackendQueue(config);
     } else {
       Logger.log(`❌ Backend Error ${responseCode}: ${responseText}`);
       for (const rowIdx of rowsToUpdate) {
@@ -237,5 +239,26 @@ function processNewLeads() {
     }
   } catch (error) {
     Logger.log(`❌ Network Exception: ${error.message}`);
+  }
+}
+
+/**
+ * Automatically triggers queue processing on the backend so all follow-up videos & PDFs dispatch 24/7.
+ */
+function flushBackendQueue(config) {
+  try {
+    const queueUrl = config.BACKEND_URL.replace(/\/leads\/webhook\/?$/, '/queue/process');
+    UrlFetchApp.fetch(queueUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'X-Webhook-Secret': config.WEBHOOK_SECRET,
+      },
+      payload: JSON.stringify({ batchSize: 25 }),
+      muteHttpExceptions: true,
+    });
+    Logger.log('⚡ Queue flush trigger sent to backend.');
+  } catch (e) {
+    Logger.log('Queue trigger notice: ' + e.message);
   }
 }

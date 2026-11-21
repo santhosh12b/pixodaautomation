@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { leadService } from '../services/lead.service.js';
+import { queueService } from '../services/queue.service.js';
 
 const singleLeadSchema = z.object({
   externalId: z.string().optional(),
@@ -35,6 +36,15 @@ export async function ingestWebhookHandler(req: Request, res: Response) {
   }));
 
   const result = await leadService.ingestBatch(normalizedInputs);
+
+  // Automatically process queue immediately so new leads receive WhatsApp messages in real-time
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      await queueService.processBatch({ batchSize: 25 });
+    } catch (queueErr) {
+      console.error('Immediate queue processing error on ingestion:', queueErr);
+    }
+  }
 
   return res.status(200).json({
     status: 'success',
@@ -83,6 +93,13 @@ export async function retryLeadHandler(req: Request, res: Response) {
 
   try {
     const result = await leadService.retryLeadOutreach(id);
+    if (process.env.NODE_ENV !== 'test') {
+      try {
+        await queueService.processBatch({ batchSize: 25 });
+      } catch (queueErr) {
+        console.error('Immediate queue processing error on retry:', queueErr);
+      }
+    }
     return res.status(200).json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
