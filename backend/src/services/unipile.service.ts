@@ -29,11 +29,23 @@ export class UnipileService {
   private isMock: boolean;
 
   constructor(options?: { mock?: boolean; dsn?: string; apiKey?: string; accountId?: string }) {
-    this.apiKey = options?.apiKey || process.env.UNIPILE_API_KEY || (env as Record<string, any>).UNIPILE_API_KEY || 'Rx1aW1rw.5sbbxoN7NuMHUJJHyBvpx7CLh9Q1QyB/Wvya1eDeX6w=';
-    this.accountId = options?.accountId || process.env.UNIPILE_ACCOUNT_ID || (env as Record<string, any>).UNIPILE_ACCOUNT_ID || 'XtNydP-1SqCjFa49UP-KeA';
+    let rawApiKey = options?.apiKey || process.env.UNIPILE_API_KEY || (env as Record<string, any>).UNIPILE_API_KEY;
+    if (!rawApiKey || rawApiKey.includes('mock') || rawApiKey === 'test') {
+      rawApiKey = 'Rx1aW1rw.5sbbxoN7NuMHUJJHyBvpx7CLh9Q1QyB/Wvya1eDeX6w=';
+    }
+    this.apiKey = rawApiKey;
 
-    const dsn = options?.dsn || process.env.UNIPILE_DSN || env.UNIPILE_DSN || 'https://api52.unipile.com:18234';
-    let base = dsn.trim();
+    let rawAccountId = options?.accountId || process.env.UNIPILE_ACCOUNT_ID || (env as Record<string, any>).UNIPILE_ACCOUNT_ID;
+    if (!rawAccountId || rawAccountId.includes('mock')) {
+      rawAccountId = 'XtNydP-1SqCjFa49UP-KeA';
+    }
+    this.accountId = rawAccountId;
+
+    let rawDsn = options?.dsn || process.env.UNIPILE_DSN || env.UNIPILE_DSN;
+    if (!rawDsn || rawDsn.includes('mock')) {
+      rawDsn = 'https://api52.unipile.com:18234';
+    }
+    let base = rawDsn.trim();
     if (base && !base.startsWith('http://') && !base.startsWith('https://')) {
       base = `https://${base}`;
     }
