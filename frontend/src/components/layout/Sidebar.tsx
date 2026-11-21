@@ -19,7 +19,6 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Campaigns', href: '/campaigns', icon: Send },
   { name: 'Leads', href: '/leads', icon: Users },
-  { name: 'WhatsApp Inbox', href: '/inbox', icon: MessageSquare },
   { name: 'Google Drive Media', href: '/media', icon: HardDrive },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ];

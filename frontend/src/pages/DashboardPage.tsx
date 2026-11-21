@@ -166,9 +166,9 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               <div className="pt-2">
-                <Link to="/inbox">
+                <Link to="/leads">
                   <Button variant="outline" size="sm" className="w-full justify-between">
-                    <span>Open Live WhatsApp Inbox</span>
+                    <span>View Lead Activity Timeline</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </Link>
