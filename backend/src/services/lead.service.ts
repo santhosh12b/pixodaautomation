@@ -158,7 +158,10 @@ export class LeadService {
             text: renderedText,
             videoAssets: videoAssetsList,
             videoAsset: videoAssetsList[0] || undefined,
+            videoCaption: campaign.videoCaption || undefined,
+            websiteText: campaign.websiteText || undefined,
             documentAsset,
+            locationText: campaign.locationText || undefined,
           },
         });
       }

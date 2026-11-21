@@ -13,9 +13,11 @@ const createCampaignSchema = z.object({
   videoAssetIds: z.array(z.string().uuid()).optional(),
   videoCaption: z.string().optional(),
   videoDelaySeconds: z.number().int().min(0).max(300).optional(),
+  websiteText: z.string().optional(),
   documentAssetId: z.string().uuid().optional().or(z.literal('')),
   documentCaption: z.string().optional(),
   documentDelaySeconds: z.number().int().min(0).max(300).optional(),
+  locationText: z.string().optional(),
   cooldownHours: z.number().int().min(1).max(720).optional(),
 });
 

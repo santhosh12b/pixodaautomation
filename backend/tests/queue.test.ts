@@ -173,5 +173,68 @@ describe('Task 4: Persistent Queue Engine', () => {
     expect(stats.completed).toBe(6);
     expect(stats.pending).toBe(0);
   });
+
+  it('should deliver full 6-step sequence including website samples and office location', async () => {
+    const sentTexts: string[] = [];
+    const sentMedia: string[] = [];
+
+    const customUnipile = {
+      sendTextMessage: async ({ text }: { text: string }) => {
+        sentTexts.push(text);
+        return { messageId: `msg_${Date.now()}` };
+      },
+      sendMediaMessage: async ({ mediaUrl }: { mediaUrl: string }) => {
+        sentMedia.push(mediaUrl);
+        return { messageId: `media_${Date.now()}` };
+      },
+      getChats: async () => [],
+    } as unknown as UnipileService;
+
+    const seqQueue = new QueueService({ unipile: customUnipile, mockStore: true });
+
+    // Enqueue initial lead outreach
+    await seqQueue.enqueue({
+      idempotencyKey: 'lead_realestate_1',
+      type: 'send_text',
+      leadId: 'lead-re-1',
+      campaignId: 'camp-re-1',
+      payload: {
+        phone: '+917010916504',
+        text: 'Hi Jeghan\nJeghan here! Namma konjam neram munnadi real estate marketing services pathi call pesinom.',
+        videoCaption: 'Sir, idhu naanga other brands-ku create pannirukka sila AI video samples. 🎬✨',
+        videoAssets: [
+          { url: 'https://blob.vercel.com/sample1.mp4', delaySeconds: 0 },
+        ],
+        websiteText: 'Sir, idhu naanga develop pannirukka sila website samples. 🌐💻\nhttp://real-value-website.vercel.app/',
+        documentAsset: {
+          url: 'https://blob.vercel.com/Pixoda_Real_estate.pdf',
+          caption: 'Ungaloda project requirements-ku suitable-aana package details share panren.',
+          delaySeconds: 0,
+        },
+        locationText: 'Sir, enga office location share panren.\nhttps://maps.app.goo.gl/jhdBgUguZMp3uofu7',
+      },
+    });
+
+    // Step 1: Text message executes
+    const step1 = await seqQueue.processBatch({ batchSize: 1 });
+    expect(step1.successCount).toBe(1);
+    expect(sentTexts.length).toBe(2); // "Hi Jeghan" and "Jeghan here!..."
+
+    // Step 2: Video executes (caption text + video) -> websiteText delivered -> chains document
+    const step2 = await seqQueue.processBatch({ batchSize: 1 });
+    expect(step2.successCount).toBe(1);
+    expect(sentMedia).toContain('https://blob.vercel.com/sample1.mp4');
+    expect(sentTexts.some(t => t.includes('website samples'))).toBe(true);
+
+    // Step 3: Document executes -> locationText delivered
+    const step3 = await seqQueue.processBatch({ batchSize: 1 });
+    expect(step3.successCount).toBe(1);
+    expect(sentMedia).toContain('https://blob.vercel.com/Pixoda_Real_estate.pdf');
+    expect(sentTexts.some(t => t.includes('office location'))).toBe(true);
+
+    const stats = await seqQueue.getStats();
+    expect(stats.completed).toBe(3);
+    expect(stats.pending).toBe(0);
+  });
 });
 

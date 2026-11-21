@@ -15,9 +15,11 @@ export interface CampaignRecord {
   videoAssetIds?: string[] | null;
   videoCaption: string | null;
   videoDelaySeconds: number;
+  websiteText?: string | null;
   documentAssetId: string | null;
   documentCaption: string | null;
   documentDelaySeconds: number;
+  locationText?: string | null;
   cooldownHours: number;
   videoAsset?: {
     id?: string;
@@ -58,6 +60,8 @@ export class CampaignService {
     try {
       await db.execute(sql`
         ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS video_asset_ids jsonb DEFAULT '[]'::jsonb;
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS website_text text;
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS location_text text;
       `);
       this.schemaEnsured = true;
     } catch (err) {
@@ -137,10 +141,18 @@ export class CampaignService {
       if (!activeCampaigns.length) return null;
 
       if (sourceSheet) {
-        const matched = activeCampaigns.find(c => 
-          c.sheetUrl === sourceSheet || 
-          c.name.toLowerCase() === sourceSheet.toLowerCase()
-        );
+        const s = sourceSheet.toLowerCase().trim();
+        const matched = activeCampaigns.find(c => {
+          const cUrl = (c.sheetUrl || '').toLowerCase();
+          const cName = c.name.toLowerCase();
+          const cTab = (c.sheetTab || '').toLowerCase();
+          return cUrl === s ||
+                 (cUrl && (cUrl.includes(s) || s.includes(cUrl))) ||
+                 cName === s ||
+                 cName.includes(s) ||
+                 s.includes(cName) ||
+                 cTab === s;
+        });
         if (matched) return this.populateMediaForCampaign(matched);
       }
 
@@ -231,9 +243,11 @@ export class CampaignService {
     videoAssetIds?: string[];
     videoCaption?: string;
     videoDelaySeconds?: number;
+    websiteText?: string;
     documentAssetId?: string;
     documentCaption?: string;
     documentDelaySeconds?: number;
+    locationText?: string;
     cooldownHours?: number;
   }): Promise<CampaignRecord> {
     await this.ensureSchema();
@@ -257,9 +271,11 @@ export class CampaignService {
       videoAssetIds,
       videoCaption: data.videoCaption || null,
       videoDelaySeconds: data.videoDelaySeconds ?? 5,
+      websiteText: data.websiteText || null,
       documentAssetId: data.documentAssetId || null,
       documentCaption: data.documentCaption || null,
       documentDelaySeconds: data.documentDelaySeconds ?? 5,
+      locationText: data.locationText || null,
       cooldownHours: data.cooldownHours ?? 24,
       videoAsset: null,
       videoAssets: [],
@@ -286,9 +302,11 @@ export class CampaignService {
         videoAssetIds: record.videoAssetIds,
         videoCaption: record.videoCaption,
         videoDelaySeconds: record.videoDelaySeconds,
+        websiteText: record.websiteText,
         documentAssetId: record.documentAssetId,
         documentCaption: record.documentCaption,
         documentDelaySeconds: record.documentDelaySeconds,
+        locationText: record.locationText,
         cooldownHours: record.cooldownHours,
       }).returning();
 

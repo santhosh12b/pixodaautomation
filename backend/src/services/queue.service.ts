@@ -355,6 +355,8 @@ export class QueueService {
             : [];
 
       const documentAsset = job.payload.documentAsset as { url?: string; caption?: string; delaySeconds?: number } | undefined;
+      const websiteText = typeof job.payload.websiteText === 'string' ? job.payload.websiteText.trim() : undefined;
+      const locationText = typeof job.payload.locationText === 'string' ? job.payload.locationText.trim() : undefined;
 
       if (videoAssets.length > 0) {
         const firstVideo = videoAssets[0];
@@ -374,28 +376,84 @@ export class QueueService {
             caption: firstVideo.caption || String(job.payload.videoCaption || 'Pls find these sample we did for other brands'),
             videoIndex: 0,
             remainingVideos,
+            websiteText,
             documentAsset,
+            locationText,
             dispatchId: job.payload.dispatchId,
           },
           runAt: videoRunAt,
         });
-      } else if (documentAsset && documentAsset.url) {
-        const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
-        const docRunAt = new Date(Date.now() + delayMs);
-        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
-        await this.enqueue({
-          idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
-          type: 'send_document',
-          leadId: leadId || undefined,
-          campaignId: campaignId || undefined,
-          payload: {
-            phone,
-            documentUrl: documentAsset.url,
-            caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
-            dispatchId: job.payload.dispatchId,
-          },
-          runAt: docRunAt,
-        });
+      } else {
+        // No videos configured - send website text directly if provided
+        if (websiteText) {
+          const webRes = await this.unipile.sendTextMessage({
+            recipientPhone: phone,
+            text: websiteText,
+          });
+
+          if (!this.isMockStore && leadId) {
+            try {
+              await db.insert(messages).values({
+                id: uuidv4(),
+                leadId,
+                campaignId,
+                unipileMessageId: webRes.messageId,
+                direction: 'outbound',
+                type: 'text',
+                content: websiteText,
+                deliveryStatus: 'sent',
+              });
+            } catch (dbErr) {
+              console.warn('DB recording website text warning:', dbErr);
+            }
+          }
+
+          if (!this.isMockStore) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        }
+
+        if (documentAsset && documentAsset.url) {
+          const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
+          const docRunAt = new Date(Date.now() + delayMs);
+          const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
+          await this.enqueue({
+            idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
+            type: 'send_document',
+            leadId: leadId || undefined,
+            campaignId: campaignId || undefined,
+            payload: {
+              phone,
+              documentUrl: documentAsset.url,
+              caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+              locationText,
+              dispatchId: job.payload.dispatchId,
+            },
+            runAt: docRunAt,
+          });
+        } else if (locationText) {
+          const locRes = await this.unipile.sendTextMessage({
+            recipientPhone: phone,
+            text: locationText,
+          });
+
+          if (!this.isMockStore && leadId) {
+            try {
+              await db.insert(messages).values({
+                id: uuidv4(),
+                leadId,
+                campaignId,
+                unipileMessageId: locRes.messageId,
+                direction: 'outbound',
+                type: 'text',
+                content: locationText,
+                deliveryStatus: 'sent',
+              });
+            } catch (dbErr) {
+              console.warn('DB recording location text warning:', dbErr);
+            }
+          }
+        }
       }
     } else if (job.type === 'send_video') {
       const videoUrl = String(job.payload.videoUrl || '');
@@ -484,29 +542,88 @@ export class QueueService {
             caption: nextVideo.caption || '',
             videoIndex: nextIndex,
             remainingVideos: nextRemaining,
+            websiteText: job.payload.websiteText,
             documentAsset,
+            locationText: job.payload.locationText,
             dispatchId: job.payload.dispatchId,
           },
           runAt: nextVideoRunAt,
         });
-      } else if (documentAsset && documentAsset.url) {
-        // All sample videos have completed! Chain the PDF document step!
-        const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
-        const docRunAt = new Date(Date.now() + delayMs);
-        const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
-        await this.enqueue({
-          idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
-          type: 'send_document',
-          leadId: leadId || undefined,
-          campaignId: campaignId || undefined,
-          payload: {
-            phone,
-            documentUrl: documentAsset.url,
-            caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
-            dispatchId: job.payload.dispatchId,
-          },
-          runAt: docRunAt,
-        });
+      } else {
+        // All sample videos have completed!
+        const websiteText = typeof job.payload.websiteText === 'string' ? job.payload.websiteText.trim() : undefined;
+        const locationText = typeof job.payload.locationText === 'string' ? job.payload.locationText.trim() : undefined;
+
+        if (websiteText) {
+          const webRes = await this.unipile.sendTextMessage({
+            recipientPhone: phone,
+            text: websiteText,
+          });
+
+          if (!this.isMockStore && leadId) {
+            try {
+              await db.insert(messages).values({
+                id: uuidv4(),
+                leadId,
+                campaignId,
+                unipileMessageId: webRes.messageId,
+                direction: 'outbound',
+                type: 'text',
+                content: websiteText,
+                deliveryStatus: 'sent',
+              });
+            } catch (dbErr) {
+              console.warn('DB recording website text warning:', dbErr);
+            }
+          }
+
+          if (!this.isMockStore) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        }
+
+        if (documentAsset && documentAsset.url) {
+          // Chain the PDF document step!
+          const delayMs = Math.min((documentAsset.delaySeconds ?? 2), 3) * 1000;
+          const docRunAt = new Date(Date.now() + delayMs);
+          const dispatchSuffix = job.payload.dispatchId ? `_${job.payload.dispatchId}` : '';
+          await this.enqueue({
+            idempotencyKey: `lead_${leadId}_doc_${campaignId}${dispatchSuffix}`,
+            type: 'send_document',
+            leadId: leadId || undefined,
+            campaignId: campaignId || undefined,
+            payload: {
+              phone,
+              documentUrl: documentAsset.url,
+              caption: documentAsset.caption || 'Please refer to the PDF above for video types and pricing packages 👆',
+              locationText,
+              dispatchId: job.payload.dispatchId,
+            },
+            runAt: docRunAt,
+          });
+        } else if (locationText) {
+          const locRes = await this.unipile.sendTextMessage({
+            recipientPhone: phone,
+            text: locationText,
+          });
+
+          if (!this.isMockStore && leadId) {
+            try {
+              await db.insert(messages).values({
+                id: uuidv4(),
+                leadId,
+                campaignId,
+                unipileMessageId: locRes.messageId,
+                direction: 'outbound',
+                type: 'text',
+                content: locationText,
+                deliveryStatus: 'sent',
+              });
+            } catch (dbErr) {
+              console.warn('DB recording location text warning:', dbErr);
+            }
+          }
+        }
       }
     } else if (job.type === 'send_document') {
       const documentUrl = String(job.payload.documentUrl || '');
@@ -534,6 +651,36 @@ export class QueueService {
           });
         } catch (dbErr) {
           console.warn('DB recording document message warning:', dbErr);
+        }
+      }
+
+      // If locationText is present, send it after document delivery
+      const locationText = typeof job.payload.locationText === 'string' ? job.payload.locationText.trim() : undefined;
+      if (locationText) {
+        if (!this.isMockStore) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        const locRes = await this.unipile.sendTextMessage({
+          recipientPhone: phone,
+          text: locationText,
+        });
+
+        if (!this.isMockStore && leadId) {
+          try {
+            await db.insert(messages).values({
+              id: uuidv4(),
+              leadId,
+              campaignId,
+              unipileMessageId: locRes.messageId,
+              direction: 'outbound',
+              type: 'text',
+              content: locationText,
+              deliveryStatus: 'sent',
+            });
+          } catch (dbErr) {
+            console.warn('DB recording location text warning:', dbErr);
+          }
         }
       }
     }
