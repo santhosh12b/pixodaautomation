@@ -246,13 +246,14 @@ function processNewLeads() {
  * Automatically triggers queue processing on the backend so all follow-up videos & PDFs dispatch 24/7.
  */
 function flushBackendQueue(config) {
+  const cfg = config || getConfig();
   try {
-    const queueUrl = config.BACKEND_URL.replace(/\/leads\/webhook\/?$/, '/queue/process');
+    const queueUrl = cfg.BACKEND_URL.replace(/\/leads\/webhook\/?$/, '/queue/process');
     UrlFetchApp.fetch(queueUrl, {
       method: 'post',
       contentType: 'application/json',
       headers: {
-        'X-Webhook-Secret': config.WEBHOOK_SECRET,
+        'X-Webhook-Secret': cfg.WEBHOOK_SECRET,
       },
       payload: JSON.stringify({ batchSize: 25 }),
       muteHttpExceptions: true,
